@@ -5,14 +5,16 @@ document.onmousemove = mouseMove;
 const CAGE_WIDTH = 30;
 const CAGE_HEIGHT = 200;
 const BALLON_WIDTH = 30;
-const MAP_WIDTH = 900;
+const ROND_WIDTH = 900;
 const MAP_HEIGHT = 500;
 const COLOR_1 = ['rgb(0, 0, 255)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
 const COLOR_2 = ['rgb(55, 131, 56)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
+const CURSEUR_FORCE_WIDTH = 30;
+const CURSEUR_FORCE_HEIGHT = 500;
 
 let Cote = {
     DROITE: 1,
-    GAUCHE: 2
+    GAUCHE: 0
 };
 
 const POSITIONS = [{x: 35, y: MAP_HEIGHT / 2 - BALLON_WIDTH / 2}, // Gardien
@@ -57,6 +59,7 @@ function GameFramework() {
     let tour;
     let score;
     let curseurTir;
+    let curseurForce;
 
     function init() {
         canvas = document.querySelector("#myCanvas");
@@ -69,10 +72,10 @@ function GameFramework() {
 
         ctx = canvas.getContext("2d");
 
-        let x = w / 2 - MAP_WIDTH / 2;
+        let x = w / 2 - ROND_WIDTH / 2;
         let y = h / 2 - MAP_HEIGHT / 2;
 
-        map = new Map(x, y, MAP_WIDTH, MAP_HEIGHT);
+        map = new Map(x, y, ROND_WIDTH, MAP_HEIGHT);
 
         equipes = [];
         equipes.push(new Equipe(Cote.GAUCHE, map));
@@ -85,13 +88,18 @@ function GameFramework() {
             DROITE: 0
         };
 
+        let xForce = map.x / 2 - CURSEUR_FORCE_WIDTH / 2;
+        let yForce = h / 2 - CURSEUR_FORCE_HEIGHT / 2;
+
+        curseurForce = new CurseurForce(xForce, yForce);
+
         reset();
 
         requestAnimationFrame(draw);
     }
 
     function reset() {
-        let x = w / 2 - MAP_WIDTH / 2;
+        let x = w / 2 - ROND_WIDTH / 2;
         let y = h / 2 - MAP_HEIGHT / 2;
 
         tour = Cote.GAUCHE;
@@ -105,7 +113,122 @@ function GameFramework() {
         ballon = new Ballon(x + map.width / 2 - BALLON_WIDTH / 2, y + map.height / 2 - BALLON_WIDTH / 2);
     }
 
+    function update() {
+        ballon.update();
+
+        equipes.forEach((e) => {
+            e.joueurs.forEach((e) => {
+                e.update();
+            })
+        })
+    }
+
+    function collisonBords(e) {
+        let collision = gererCollisionCage(e);
+
+        if (!collision) {
+            if (e.x <= map.x) {
+                collision = true;
+
+                e.x = map.x;
+
+                e.inverserVx();
+            } else if (e.x + e.width >= map.x + map.width) {
+                collision = true;
+
+                e.x = map.x + map.width - e.width;
+                e.inverserVx();
+            } else if (e.y <= map.y) {
+                collision = true;
+
+                e.y = map.y;
+                e.inverserVy();
+            } else if (e.y + e.height >= map.y + map.height) {
+                collision = true;
+
+                e.y = map.y + map.height - e.width;
+                e.inverserVy();
+            }
+        }
+
+        if (collision) {
+            e.vitesse *= 0.75;
+        }
+    }
+
+    function collisions() {
+        collisonBords(ballon);
+
+        equipes.forEach((e) => {
+            e.joueurs.forEach((e) => {
+                //Touche le cote droit
+                collisonBords(e);
+            })
+        });
+
+
+        //Pour toutes les equipes
+        equipes.forEach((e) => {
+
+            //Pour chaque joueur de chaque équipe
+            e.joueurs.forEach((j) => {
+                if (j.touche(ballon)) {
+                    gererCollision(j, ballon);
+                }
+
+                "use strict";
+                //Pour chaque équipe
+                equipes.forEach((e2) => {
+                    //Chaque joueur de chaque équipe
+                    e2.joueurs.forEach((j2) => {
+                        if (j.x == j2.x && j.y == j2.y) return;
+
+                        if (j.touche(j2)) {
+                            gererCollision(j, j2)
+                        }
+                    })
+                })
+            })
+
+        })
+    }
+
+    function gererCollision(j, j2) {
+        let angle = j.calculerAngle(j2);
+        j.angle = angle + ((j.x > j2.x) ? 0 : Math.PI);
+        j2.angle = angle + ((j2.x > j.x) ? 0 : Math.PI);
+        
+        j.angle = j.vitesse > 0 ? 2 * Math.PI - j.angle : j.angle;
+        j2.angle = j2.vitesse > 0 ? 2 * Math.PI - j2.angle : j2.angle;
+        
+
+        j.vitesse = Math.max(j.vitesse, j2.vitesse);
+        j2.vitesse = Math.max(j.vitesse, j2.vitesse);
+    }
+
+    function gererCollisionCage(j) {
+
+        let cageDroite = map.cageDroite;
+        let cageGauche = map.cageGauche;
+
+        if (j.y < cageGauche.y || j.y > cageGauche.y + cageGauche.height) return false;
+
+        if (j.x <= cageGauche.x) {
+            j.x = cageGauche.x;
+
+        } else if (j.x + j.width >= cageDroite.x + cageDroite.width) {
+            j.x = cageDroite.x + cageDroite.width - j.width;
+        }
+
+        return true;
+    }
+
     function draw() {
+        collisions();
+        update();
+
+        ctx.save();
+
         ctx.clearRect(0, 0, w, h);
 
         ctx.font = "70px Arial";
@@ -113,10 +236,11 @@ function GameFramework() {
         ctx.textAlign = "center";
         ctx.fillText( score.GAUCHE + " : " + score.DROITE , w/2, map.y / 2 + 30);
 
-        ctx.save();
+
 
         map.draw(ctx);
 
+        curseurForce.draw(ctx);
         curseurTir.draw(ctx);
 
         equipes[0].draw(ctx);
@@ -136,6 +260,7 @@ function GameFramework() {
 
         let j = clickDansJoueur(x, y);
 
+
         if (j) {
             console.log('Click dans joueur');
 
@@ -145,17 +270,40 @@ function GameFramework() {
             let pos = j.centre();
             curseurTir.x = pos.x - curseurTir.width / 2;
             curseurTir.y = pos.y - curseurTir.height / 2;
+        } else if (curseurTir.estVisible) {
+            tir();
+        } else if (curseurForce.estDans(x, y)) {
+            curseurForce.definirNouvelValeur(y);
+        }
+    }
+
+    function tir() {
+        console.log('tir');
+
+        curseurTir.joueur.angle = curseurTir.angle;
+        curseurTir.joueur.vitesse = 10 * curseurForce.valeur;
+
+        curseurTir.estVisible = false;
+        curseurTir.joueur = null;
+
+        tour = (tour == Cote.GAUCHE) ? Cote.DROITE : Cote.GAUCHE;
+
+        if (tour == Cote.GAUCHE) {
+            equipes[0].doitJouer = true;
+            equipes[1].doitJouer = false;
+        } else {
+            equipes[0].doitJouer = false;
+            equipes[1].doitJouer = true;
         }
     }
 
     function clickDansJoueur(x, y) {
 
-        for (let i = 0; i < 2; i++) {
-            for (let k = 0; k < equipes[i].joueurs.length; k++) {
+        let equipe = equipes[tour];
 
-                let j = equipes[i].joueurs[k];
-                if (j.estDans(x, y)) return j;
-            }
+        for (let k = 0; k < equipe.joueurs.length; k++) {
+            let j = equipe.joueurs[k];
+            if (j.estDans(x, y)) return j;
         }
     }
 
@@ -163,7 +311,6 @@ function GameFramework() {
         if (!curseurTir.estVisible) return;
 
         let angle = calculerAngle(e.clientX, e.clientY);
-        console.log(angle);
 
         curseurTir.angle = angle;
     }
@@ -171,7 +318,7 @@ function GameFramework() {
     function calculerAngle(x, y) {
         let pos = curseurTir.centre();
 
-        let angle = Math.atan((pos.y - y) / (pos.x - x));
+        let angle = Math.atan((pos.y - y) / (pos.x - x)) + ((x > pos.x) ? 0 : Math.PI);
 
         return angle;
     }
@@ -297,11 +444,38 @@ class Cage extends ObjetGraphique {
     }
 }
 
-class Ballon extends ObjetGraphique {
+class Rond extends ObjetGraphique {
+    constructor(x, y, w) {
+        super(x, y, w, w);
+
+        this.vitesse = 0;
+        this.angle = 0;
+    }
+
+    inverserVx() {
+        this.angle = Math.PI - this.angle;
+    }
+
+    inverserVy() {
+        this.angle = 2 * Math.PI - this.angle;
+    }
+}
+
+class Ballon extends Rond {
     constructor(x, y) {
         super(x, y, BALLON_WIDTH, BALLON_WIDTH);
     }
 
+    update() {
+        if (this.vitesse == 0) return;
+
+        this.x += Math.cos(this.angle) * this.vitesse;
+        this.y += Math.sin(this.angle) * this.vitesse;
+
+        this.vitesse -= 0.1;
+
+        if (this.vitesse < 0) this.vitesse = 0;
+    }
 
     draw(context) {
 
@@ -373,37 +547,42 @@ class Ballon extends ObjetGraphique {
     }
 }
 
-class Joueur extends ObjetGraphique {
+class Joueur extends Rond {
     constructor(x, y, c) {
         super(x, y, BALLON_WIDTH, BALLON_WIDTH);
         this.colors = c;
 
-        this.sizeDoitJoueur = {
+        this.sizeDoitJouer = {
             size: 10,
             augmente: true
         };
+
     }
 
-    centre() {
-        return {
-            x: this.x + this.width / 2,
-            y: this.y + this.height / 2
-        }
+    update() {
+        if (this.vitesse == 0) return;
+
+        this.x += Math.cos(this.angle) * this.vitesse;
+        this.y += Math.sin(this.angle) * this.vitesse;
+
+        this.vitesse -= 0.1;
+
+        if (this.vitesse < 0) this.vitesse = 0;
     }
 
     draw(context, doitJouer) {
         if (doitJouer) {
-            if(this.sizeDoitJoueur.augmente) {
-                this.sizeDoitJoueur.size += 1;
+            if(this.sizeDoitJouer.augmente) {
+                this.sizeDoitJouer.size += 1;
 
-                if (this.sizeDoitJoueur.size > 40) {
-                    this.sizeDoitJoueur.augmente = false;
+                if (this.sizeDoitJouer.size > 40) {
+                    this.sizeDoitJouer.augmente = false;
                 }
             } else {
-                this.sizeDoitJoueur.size -= 1;
+                this.sizeDoitJouer.size -= 1;
 
-                if (this.sizeDoitJoueur.size < 10) {
-                    this.sizeDoitJoueur.augmente = true;
+                if (this.sizeDoitJouer.size < 10) {
+                    this.sizeDoitJouer.augmente = true;
                 }
             }
         }
@@ -412,7 +591,7 @@ class Joueur extends ObjetGraphique {
         context.translate(this.x, this.y);
 
         context.shadowColor = doitJouer ? 'white' : 'black';
-        context.shadowBlur = doitJouer ? this.sizeDoitJoueur.size : 10;
+        context.shadowBlur = doitJouer ? this.sizeDoitJouer.size : 10;
         context.fillStyle = 'black';
 
         context.beginPath();
@@ -467,6 +646,22 @@ class Joueur extends ObjetGraphique {
 
         let d = Math.sqrt((pos.x - x) * (pos.x - x) + (pos.y - y ) * (pos.y - y ));
         return d <= (this.width / 2);
+    }
+
+    touche(j) {
+        let pos = this.centre();
+
+        let d = Math.sqrt((pos.x - j.x) * (pos.x - j.x) + (pos.y - j.y ) * (pos.y - j.y ));
+        return d <= this.width;
+    }
+
+    calculerAngle(j) {
+        let p = j.centre();
+        let p2 = this.centre();
+
+        let angle = Math.atan((p.y - p2.y) / (p.x - p2.x));
+
+        return angle;
     }
 
     arc(context, x, y, w, h, startAngle, endAngle, isClosed) {
@@ -537,7 +732,7 @@ class CurseurTir extends ObjetGraphique {
 
         context.save();
         context.translate(this.x + this.width / 2, this.y + this.height / 2);
-        context.rotate(this.angle * 180 / Math.PI);
+        context.rotate(this.angle);
         context.translate(-this.width / 2, -this.height / 2);
 
 
@@ -570,4 +765,77 @@ class CurseurTir extends ObjetGraphique {
         context.restore();
     }
 
+}
+
+class CurseurForce extends ObjetGraphique {
+    constructor(x, y) {
+        super(x, y, CURSEUR_FORCE_WIDTH, CURSEUR_FORCE_HEIGHT);
+
+        this.valeur = 0.5;
+        this.margeCote = 5;
+    }
+
+    draw(ctx) {
+        //TODO: Finir le curseur
+        let margin = this.width / 2;
+
+        ctx.save();
+
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = "#0d0e1a";
+        ctx.strokeStyle = "#ecf0f1";
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.moveTo(0, margin);
+        ctx.arc(this.width / 2, margin, margin, Math.PI, 0);
+        ctx.lineTo(this.width, this.height - margin);
+        ctx.arc(this.width / 2, this.height - margin, margin, 0, Math.PI);
+        ctx.lineTo(0,margin);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#e74c3c";
+
+
+        let w = this.width - 2 * this.margeCote;
+        let h = this.height - 2 * this.margeCote;
+
+        margin = w / 2;
+
+
+        h *= this.valeur;
+        h -= 15;
+
+        ctx.translate(this.margeCote, this.height -  this.margeCote - margin);
+
+        ctx.beginPath();
+        ctx.arc(w / 2, 0, w / 2, 0, Math.PI);
+        ctx.arc(w / 2, -h, w / 2, Math.PI, 0);
+        ctx.fill();
+
+
+
+        ctx.restore();
+    }
+
+    estDans(x, y) {
+        let xMin = this.x + this.margeCote;
+        let yMin = this.y + this.margeCote;
+
+        let xMax = xMin + (this.width - 2 * this.margeCote);
+        let yMax = yMin + (this.height - 2 * this.margeCote);
+
+        return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+
+
+    }
+
+    definirNouvelValeur(y) {
+        let yMin = this.y + this.margeCote;
+
+        let yMax = this.height - 2 * this.margeCote;
+
+        this.valeur = 1 - ((y - yMin)/yMax);
+    }
 }
