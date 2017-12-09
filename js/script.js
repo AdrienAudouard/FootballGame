@@ -11,6 +11,13 @@ const COLOR_1 = ['rgb(0, 0, 255)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
 const COLOR_2 = ['rgb(55, 131, 56)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
 const CURSEUR_FORCE_WIDTH = 30;
 const CURSEUR_FORCE_HEIGHT = 500;
+const COLORS_PICKER = [
+    ["#2ecc71", "#3498db", "#9b59b6"],
+    ["#e67e22", "#e74c3c", "#2c3e50"],
+    ["#f1c40f", "#000", "#fff"]
+];
+const FLAG_HEIGHT = 60;
+const FLAG_WIDTH = 90;
 
 let Cote = {
     DROITE: 1,
@@ -59,6 +66,8 @@ function GameFramework() {
     let score;
     let curseurTir;
     let curseurForce;
+    let colorPicker;
+    let drapeauGauche, drapeauDroit;
 
     function init() {
         canvas = document.querySelector("#myCanvas");
@@ -91,6 +100,13 @@ function GameFramework() {
         let yForce = h / 2 - CURSEUR_FORCE_HEIGHT / 2;
 
         curseurForce = new CurseurForce(xForce, yForce);
+        colorPicker = new ColorPicker(10, 10);
+
+        let yDrapeau = map.y / 2 - FLAG_HEIGHT / 2;
+        let xDrapeau = map.x + map.width / 4 - FLAG_WIDTH / 2;
+
+        drapeauGauche = new Drapeau(xDrapeau, yDrapeau, COLOR_1);
+        drapeauDroit = new Drapeau(xDrapeau + map.width / 2, yDrapeau, COLOR_2);
 
         reset();
 
@@ -123,9 +139,11 @@ function GameFramework() {
     }
 
     function collisonBords(e) {
-        let collision = false ;//gererCollisionCage(e);
+        let collision = gererCollisionCage(e);
 
         if (!collision) {
+            collision = false;
+
             if (e.x <= map.x) {
                 collision = true;
 
@@ -176,7 +194,6 @@ function GameFramework() {
                     gererCollision(j, ballon);
                 }
 
-                "use strict";
                 //Pour chaque équipe
                 equipes.forEach((e2) => {
                     //Chaque joueur de chaque équipe
@@ -220,7 +237,7 @@ function GameFramework() {
             j.x = cageDroite.x + cageDroite.width - j.width;
         }
 
-        return true;
+        return false;
     }
 
     function draw() {
@@ -247,7 +264,10 @@ function GameFramework() {
         equipes[1].draw(ctx);
         ballon.draw(ctx);
 
-        drawFlags();
+        drapeauGauche.draw(ctx);
+        drapeauDroit.draw(ctx);
+
+        colorPicker.draw(ctx);
 
         ctx.restore();
 
@@ -345,19 +365,36 @@ function GameFramework() {
     }
 
     function onMouseMove(e) {
+
+        let dansJoueur = false;
+
+        equipes.forEach((eq) => {
+            "use strict";
+           eq.joueurs.forEach((j) => {
+               if (j.estDans(e.clientX, e.clientY)) dansJoueur = true;
+           }) ;
+        });
+
+        if ( dansJoueur
+            ||drapeauDroit.estDans(e.clientX, e.clientY)
+            || drapeauGauche.estDans(e.clientX, e.clientY)
+            || curseurForce.estDans(e.clientX, e.clientY)) {
+            document.body.style.cursor = 'pointer';
+        } else {
+            document.body.style.cursor = 'default';
+        }
+
+
+
         if (!curseurTir.estVisible) return;
 
-        let angle = calculerAngle(e.clientX, e.clientY);
-
-        curseurTir.angle = angle;
+        curseurTir.angle = calculerAngle(e.clientX, e.clientY);
     }
 
     function calculerAngle(x, y) {
         let pos = curseurTir.centre();
 
-        let angle = Math.atan((pos.y - y) / (pos.x - x)) + ((x > pos.x) ? 0 : Math.PI);
-
-        return angle;
+        return Math.atan((pos.y - y) / (pos.x - x)) + ((x > pos.x) ? 0 : Math.PI);
     }
 
     return {
@@ -387,6 +424,10 @@ class ObjetGraphique {
             x: this.x,
             y: this.y
         }
+    }
+
+    estDans(x, y) {
+        return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.width;
     }
 
     draw(ctx) {
@@ -514,73 +555,73 @@ class Ballon extends Rond {
         if (this.vitesse < 0) this.vitesse = 0;
     }
 
-    draw(context) {
+    draw(ctx) {
 
-        context.save();
-        context.translate(this.x, this.y);
+        ctx.save();
+        ctx.translate(this.x, this.y);
 
-        context.fillStyle = 'rgb(0, 0, 0)';
+        ctx.fillStyle = 'rgb(0, 0, 0)';
 
-        context.shadowColor = 'black';
-        context.shadowBlur = 10;
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 10;
 
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
-        context.closePath();
-        context.fill();
+        ctx.beginPath();
+        ctx.arc(this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
+        ctx.closePath();
+        ctx.fill();
 
-        context.shadowBlur = 0;
+        ctx.shadowBlur = 0;
 
         //// Bezier Drawing
-        context.beginPath();
-        context.moveTo(11.62, 0);
-        context.bezierCurveTo(12.86, 1.15, 14.4, 2.58, 14.4, 2.58);
-        context.bezierCurveTo(14.4, 2.58, 17.43, 0.9, 18.83, 0.11);
-        context.bezierCurveTo(19.15, 0.2, 19.47, 0.29, 19.78, 0.39);
-        context.bezierCurveTo(21.14, 0.85, 22.42, 1.5, 23.57, 2.31);
-        context.bezierCurveTo(22.5, 2.84, 21.57, 3.3, 21.57, 3.3);
-        context.lineTo(22.43, 9.12);
-        context.lineTo(28.22, 10.1);
-        context.bezierCurveTo(28.22, 10.1, 28.49, 9.58, 28.86, 8.88);
-        context.bezierCurveTo(29.6, 10.64, 30, 12.58, 30, 14.62);
-        context.bezierCurveTo(30, 16.73, 29.56, 18.74, 28.78, 20.56);
-        context.bezierCurveTo(28.11, 19.64, 27.55, 18.86, 27.55, 18.86);
-        context.lineTo(21.96, 20.67);
-        context.lineTo(21.95, 26.55);
-        context.bezierCurveTo(21.95, 26.55, 22.58, 26.76, 23.42, 27.03);
-        context.bezierCurveTo(22.16, 27.89, 20.76, 28.56, 19.26, 29.01);
-        context.bezierCurveTo(17.99, 28.16, 14.91, 26.08, 14.91, 26.08);
-        context.bezierCurveTo(14.91, 26.08, 14.34, 26.52, 13.61, 27.09);
-        context.bezierCurveTo(12.79, 27.74, 11.75, 28.55, 11.06, 29.09);
-        context.bezierCurveTo(9.2, 28.59, 7.49, 27.74, 5.99, 26.61);
-        context.bezierCurveTo(6.83, 26.17, 7.48, 25.83, 7.48, 25.83);
-        context.lineTo(6.49, 20.04);
-        context.bezierCurveTo(6.49, 20.04, 1.22, 19.27, 0.71, 19.2);
-        context.bezierCurveTo(0.25, 17.75, 0, 16.21, 0, 14.62);
-        context.bezierCurveTo(0, 13.24, 0.19, 11.9, 0.54, 10.63);
-        context.bezierCurveTo(0.69, 10.92, 0.78, 11.1, 0.78, 11.1);
-        context.lineTo(6.57, 10.11);
-        context.lineTo(7.43, 4.3);
-        context.bezierCurveTo(7.43, 4.3, 6.4, 3.79, 5.25, 3.22);
-        context.bezierCurveTo(6.85, 1.85, 8.74, 0.81, 10.81, 0.21);
-        context.bezierCurveTo(11.07, 0.13, 11.33, 0.07, 11.6, 0.01);
-        context.lineTo(11.62, 0);
-        context.closePath();
-        context.fillStyle = 'rgb(255, 255, 255)';
-        context.fill();
+        ctx.beginPath();
+        ctx.moveTo(11.62, 0);
+        ctx.bezierCurveTo(12.86, 1.15, 14.4, 2.58, 14.4, 2.58);
+        ctx.bezierCurveTo(14.4, 2.58, 17.43, 0.9, 18.83, 0.11);
+        ctx.bezierCurveTo(19.15, 0.2, 19.47, 0.29, 19.78, 0.39);
+        ctx.bezierCurveTo(21.14, 0.85, 22.42, 1.5, 23.57, 2.31);
+        ctx.bezierCurveTo(22.5, 2.84, 21.57, 3.3, 21.57, 3.3);
+        ctx.lineTo(22.43, 9.12);
+        ctx.lineTo(28.22, 10.1);
+        ctx.bezierCurveTo(28.22, 10.1, 28.49, 9.58, 28.86, 8.88);
+        ctx.bezierCurveTo(29.6, 10.64, 30, 12.58, 30, 14.62);
+        ctx.bezierCurveTo(30, 16.73, 29.56, 18.74, 28.78, 20.56);
+        ctx.bezierCurveTo(28.11, 19.64, 27.55, 18.86, 27.55, 18.86);
+        ctx.lineTo(21.96, 20.67);
+        ctx.lineTo(21.95, 26.55);
+        ctx.bezierCurveTo(21.95, 26.55, 22.58, 26.76, 23.42, 27.03);
+        ctx.bezierCurveTo(22.16, 27.89, 20.76, 28.56, 19.26, 29.01);
+        ctx.bezierCurveTo(17.99, 28.16, 14.91, 26.08, 14.91, 26.08);
+        ctx.bezierCurveTo(14.91, 26.08, 14.34, 26.52, 13.61, 27.09);
+        ctx.bezierCurveTo(12.79, 27.74, 11.75, 28.55, 11.06, 29.09);
+        ctx.bezierCurveTo(9.2, 28.59, 7.49, 27.74, 5.99, 26.61);
+        ctx.bezierCurveTo(6.83, 26.17, 7.48, 25.83, 7.48, 25.83);
+        ctx.lineTo(6.49, 20.04);
+        ctx.bezierCurveTo(6.49, 20.04, 1.22, 19.27, 0.71, 19.2);
+        ctx.bezierCurveTo(0.25, 17.75, 0, 16.21, 0, 14.62);
+        ctx.bezierCurveTo(0, 13.24, 0.19, 11.9, 0.54, 10.63);
+        ctx.bezierCurveTo(0.69, 10.92, 0.78, 11.1, 0.78, 11.1);
+        ctx.lineTo(6.57, 10.11);
+        ctx.lineTo(7.43, 4.3);
+        ctx.bezierCurveTo(7.43, 4.3, 6.4, 3.79, 5.25, 3.22);
+        ctx.bezierCurveTo(6.85, 1.85, 8.74, 0.81, 10.81, 0.21);
+        ctx.bezierCurveTo(11.07, 0.13, 11.33, 0.07, 11.6, 0.01);
+        ctx.lineTo(11.62, 0);
+        ctx.closePath();
+        ctx.fillStyle = 'rgb(255, 255, 255)';
+        ctx.fill();
 
         //// Polygon Drawing
-        context.beginPath();
-        context.moveTo(15, 10);
-        context.lineTo(19.76, 13.45);
-        context.lineTo(17.94, 19.05);
-        context.lineTo(12.06, 19.05);
-        context.lineTo(10.24, 13.45);
-        context.closePath();
-        context.fillStyle = 'rgb(0, 0, 0)';
-        context.fill();
+        ctx.beginPath();
+        ctx.moveTo(15, 10);
+        ctx.lineTo(19.76, 13.45);
+        ctx.lineTo(17.94, 19.05);
+        ctx.lineTo(12.06, 19.05);
+        ctx.lineTo(10.24, 13.45);
+        ctx.closePath();
+        ctx.fillStyle = 'rgb(0, 0, 0)';
+        ctx.fill();
 
-        context.restore();
+        ctx.restore();
     }
 }
 
@@ -610,7 +651,7 @@ class Joueur extends Rond {
         if (this.vitesse < 0) this.vitesse = 0;
     }
 
-    draw(context, doitJouer) {
+    draw(ctx, doitJouer) {
         if (doitJouer) {
             if(this.sizeDoitJouer.augmente) {
                 this.sizeDoitJouer.size += 1;
@@ -627,58 +668,55 @@ class Joueur extends Rond {
             }
         }
 
-        context.save();
-        context.translate(this.x, this.y);
+        ctx.save();
+        ctx.translate(this.x, this.y);
 
-        context.shadowColor = doitJouer ? 'white' : 'black';
-        context.shadowBlur = doitJouer ? this.sizeDoitJouer.size : 10;
-        context.fillStyle = 'black';
+        ctx.shadowColor = doitJouer ? 'white' : 'black';
+        ctx.shadowBlur = doitJouer ? this.sizeDoitJouer.size : 10;
+        ctx.fillStyle = 'black';
 
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
-        context.closePath();
-        context.fill();
+        ctx.beginPath();
+        this.arc(ctx, this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
+        ctx.closePath();
+        ctx.fill();
 
-        context.shadowBlur = 0;
+        ctx.shadowBlur = 0;
 
-        this.arc(context, 3, 3, 24, 24, 90, -90, true);
-        context.fillStyle = this.colors[0]; // 'rgb(0, 0, 255)';
-        context.fill();
-
-
-        //// Oval 3 Drawing
-        this.arc(context, 3, 3, 24, 24, 270, 90, true);
-        context.fillStyle =  this.colors[2]; // 'rgb(255, 0, 0)';
-        context.fill();
+        this.arc(ctx, 3, 3, 24, 24, 90, -90, true);
+        ctx.fillStyle = this.colors[0]; // 'rgb(0, 0, 255)';
+        ctx.fill();
 
 
-        //// Rectangle 2 Drawing
-        context.beginPath();
-        context.rect(10, 2, 10, 26);
-        context.fillStyle = this.colors[1]; //'rgb(255, 255, 255)';
-        context.fill();
+        this.arc(ctx, 3, 3, 24, 24, 270, 90, true);
+        ctx.fillStyle =  this.colors[2]; // 'rgb(255, 0, 0)';
+        ctx.fill();
 
 
-        //// Bezier Drawing
-        context.beginPath();
-        context.moveTo(15, 3);
-        context.bezierCurveTo(13.04, 3, 11.19, 3.47, 9.56, 4.3);
-        context.bezierCurveTo(5.67, 6.28, 3, 10.33, 3, 15);
-        context.bezierCurveTo(3, 21.63, 8.37, 27, 15, 27);
-        context.bezierCurveTo(21.63, 27, 27, 21.63, 27, 15);
-        context.bezierCurveTo(27, 8.37, 21.63, 3, 15, 3);
-        context.closePath();
-        context.moveTo(30, 15);
-        context.bezierCurveTo(30, 23.28, 23.28, 30, 15, 30);
-        context.bezierCurveTo(6.72, 30, 0, 23.28, 0, 15);
-        context.bezierCurveTo(0, 9.61, 2.84, 4.88, 7.11, 2.24);
-        context.bezierCurveTo(9.41, 0.82, 12.11, 0, 15, 0);
-        context.bezierCurveTo(23.28, 0, 30, 6.72, 30, 15);
-        context.closePath();
-        context.fillStyle = 'rgb(0, 0, 0)';
-        context.fill();
+        ctx.beginPath();
+        ctx.rect(10, 2, 10, 26);
+        ctx.fillStyle = this.colors[1]; //'rgb(255, 255, 255)';
+        ctx.fill();
 
-        context.restore();
+
+        ctx.beginPath();
+        ctx.moveTo(15, 3);
+        ctx.bezierCurveTo(13.04, 3, 11.19, 3.47, 9.56, 4.3);
+        ctx.bezierCurveTo(5.67, 6.28, 3, 10.33, 3, 15);
+        ctx.bezierCurveTo(3, 21.63, 8.37, 27, 15, 27);
+        ctx.bezierCurveTo(21.63, 27, 27, 21.63, 27, 15);
+        ctx.bezierCurveTo(27, 8.37, 21.63, 3, 15, 3);
+        ctx.closePath();
+        ctx.moveTo(30, 15);
+        ctx.bezierCurveTo(30, 23.28, 23.28, 30, 15, 30);
+        ctx.bezierCurveTo(6.72, 30, 0, 23.28, 0, 15);
+        ctx.bezierCurveTo(0, 9.61, 2.84, 4.88, 7.11, 2.24);
+        ctx.bezierCurveTo(9.41, 0.82, 12.11, 0, 15, 0);
+        ctx.bezierCurveTo(23.28, 0, 30, 6.72, 30, 15);
+        ctx.closePath();
+        ctx.fillStyle = 'rgb(0, 0, 0)';
+        ctx.fill();
+
+        ctx.restore();
     }
 
     estDans(x, y) {
@@ -699,9 +737,7 @@ class Joueur extends Rond {
         let p = j.centre();
         let p2 = this.centre();
 
-        let angle = Math.atan((p.y - p2.y) / (p.x - p2.x));
-
-        return angle;
+        return Math.atan((p.y - p2.y) / (p.x - p2.x));
     }
 
     arc(context, x, y, w, h, startAngle, endAngle, isClosed) {
@@ -767,13 +803,13 @@ class CurseurTir extends ObjetGraphique {
         this.joueur = null;
     }
 
-    draw(context) {
+    draw(ctx) {
         if (!this.estVisible) return;
 
-        context.save();
-        context.translate(this.x + this.width / 2, this.y + this.height / 2);
-        context.rotate(this.angle);
-        context.translate(-this.width / 2, -this.height / 2);
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate(this.angle);
+        ctx.translate(-this.width / 2, -this.height / 2);
 
 
 
@@ -789,20 +825,20 @@ class CurseurTir extends ObjetGraphique {
         }
 
         //// Bezier Drawing
-        context.beginPath();
-        context.moveTo(0.5, 4);
-        context.lineTo(0.5, 11);
-        context.lineTo(this.width - 12, 11);
-        context.lineTo(this.width - 12, 14.5);
-        context.lineTo(this.width, 6.76);
-        context.lineTo(this.width - 12, -0.5);
-        context.lineTo(this.width - 12, 4);
-        context.lineTo(0.5, 4);
-        context.closePath();
-        context.fillStyle = gradient(context.createLinearGradient(0.5, 7, 52.5, 7));
-        context.fill();
+        ctx.beginPath();
+        ctx.moveTo(0.5, 4);
+        ctx.lineTo(0.5, 11);
+        ctx.lineTo(this.width - 12, 11);
+        ctx.lineTo(this.width - 12, 14.5);
+        ctx.lineTo(this.width, 6.76);
+        ctx.lineTo(this.width - 12, -0.5);
+        ctx.lineTo(this.width - 12, 4);
+        ctx.lineTo(0.5, 4);
+        ctx.closePath();
+        ctx.fillStyle = gradient(ctx.createLinearGradient(0.5, 7, 52.5, 7));
+        ctx.fill();
 
-        context.restore();
+        ctx.restore();
     }
 
 }
@@ -816,7 +852,6 @@ class CurseurForce extends ObjetGraphique {
     }
 
     draw(ctx) {
-        //TODO: Finir le curseur
         let margin = this.width / 2;
 
         ctx.save();
@@ -877,5 +912,78 @@ class CurseurForce extends ObjetGraphique {
         let yMax = this.height - 2 * this.margeCote;
 
         this.valeur = 1 - ((y - yMin)/yMax);
+    }
+}
+
+class ColorPicker extends ObjetGraphique {
+    constructor(x, y) {
+        super(x,y, 200, 200);
+        this.estVisible = true;
+    }
+
+    estDans(x, y) {
+        if (!this.estVisible) return false;
+    }
+
+    draw(ctx) {
+        if (!this.estVisible) return;
+
+        ctx.save();
+
+        ctx.fillStyle = "#fff";
+        ctx.translate(this.x, this.y);
+
+        let cornerRadius = 5;
+        
+        
+        ctx.beginPath();
+        ctx.arc(cornerRadius, cornerRadius, cornerRadius, Math.PI, 1.5*Math.PI);
+        ctx.arc(this.width -cornerRadius, cornerRadius, cornerRadius, 1.5*Math.PI, 2*Math.PI);
+        ctx.arc(this.width -cornerRadius,  this.height-cornerRadius, cornerRadius, 0, 0.5*Math.PI);
+        ctx.arc(cornerRadius,  this.height-cornerRadius, cornerRadius, 0.5*Math.PI, Math.PI);
+        ctx.closePath();
+
+        ctx.fill();
+
+        let margeW = this.width * 0.1;
+        let margeH = this.height * 0.1;
+
+        let w = this.width - 4*margeW;
+        let h = this.height - 4*margeH;
+
+        ctx.translate(margeW, margeH);
+
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                ctx.fillStyle = COLORS_PICKER[i][j];
+                ctx.fillRect(0, 0, w / 3, h / 3);
+                ctx.translate(w / 3 + margeW, 0);
+            }
+
+            ctx.translate( - 3 * (w / 3 + margeW), h / 3 + margeH);
+        }
+
+        ctx.restore();
+    }
+}
+
+class Drapeau extends ObjetGraphique {
+    constructor(x, y, colors) {
+        super(x, y, FLAG_WIDTH, FLAG_HEIGHT);
+
+        this.colors = colors;
+    }
+
+    draw(ctx) {
+        ctx.save();
+
+        ctx.translate(this.x, this.y);
+
+        for (let i = 0; i < 3; i++) {
+            ctx.fillStyle = this.colors[i];
+            ctx.fillRect(i * this.width / 3, 0, this.width / 3, this.height);
+        }
+
+        ctx.restore();
     }
 }
