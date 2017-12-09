@@ -27,7 +27,6 @@ const POSITIONS = [{x: 35, y: MAP_HEIGHT / 2 - BALLON_WIDTH / 2}, // Gardien
     {x: 255, y: MAP_HEIGHT - 40 - BALLON_WIDTH},
     //Attaquant
     {x: 335, y: MAP_HEIGHT / 2 - BALLON_WIDTH / 2}
-
 ];
 
 let canvas;
@@ -124,7 +123,7 @@ function GameFramework() {
     }
 
     function collisonBords(e) {
-        let collision = gererCollisionCage(e);
+        let collision = false ;//gererCollisionCage(e);
 
         if (!collision) {
             if (e.x <= map.x) {
@@ -152,6 +151,7 @@ function GameFramework() {
         }
 
         if (collision) {
+            console.log("collision");
             e.vitesse *= 0.75;
         }
     }
@@ -247,9 +247,37 @@ function GameFramework() {
         equipes[1].draw(ctx);
         ballon.draw(ctx);
 
+        drawFlags();
+
         ctx.restore();
 
         requestAnimationFrame(draw);
+    }
+
+    function drawFlags() {
+        ctx.save();
+
+        let flagWidth = 90;
+        let flagHeight = 60;
+
+        let y = map.y / 2 - flagHeight / 2;
+        let x = map.x + map.width / 4 - flagWidth / 2;
+
+        ctx.translate(x, y);
+
+        for (let i = 0; i < 3; i++) {
+            ctx.fillStyle = COLOR_1[i];
+            ctx.fillRect(i * flagWidth / 3, 0, flagWidth / 3, flagHeight);
+        }
+
+        ctx.translate(map.width / 2, 0);
+
+        for (let i = 0; i < 3; i++) {
+            ctx.fillStyle = COLOR_2[i];
+            ctx.fillRect(i * flagWidth / 3, 0, flagWidth / 3, flagHeight);
+        }
+
+        ctx.restore();
     }
 
     function onClick(e) {
@@ -270,10 +298,14 @@ function GameFramework() {
             let pos = j.centre();
             curseurTir.x = pos.x - curseurTir.width / 2;
             curseurTir.y = pos.y - curseurTir.height / 2;
-        } else if (curseurTir.estVisible) {
-            tir();
-        } else if (curseurForce.estDans(x, y)) {
+        }
+
+        else if (curseurForce.estDans(x, y)) {
             curseurForce.definirNouvelValeur(y);
+        }
+
+        else if (curseurTir.estVisible) {
+            tir();
         }
     }
 
@@ -281,7 +313,12 @@ function GameFramework() {
         console.log('tir');
 
         curseurTir.joueur.angle = curseurTir.angle;
-        curseurTir.joueur.vitesse = 10 * curseurForce.valeur;
+        console.log("force: " + curseurForce.valeur);
+        console.log("angle: " + curseurTir.angle);
+        console.log("x: " + curseurTir.joueur.x);
+        console.log("y: " + curseurTir.joueur.y);
+
+        curseurTir.joueur.vitesse = 10.0 * parseFloat(curseurForce.valeur);
 
         curseurTir.estVisible = false;
         curseurTir.joueur = null;
@@ -565,7 +602,10 @@ class Joueur extends Rond {
         this.x += Math.cos(this.angle) * this.vitesse;
         this.y += Math.sin(this.angle) * this.vitesse;
 
-        this.vitesse -= 0.1;
+        console.log("vitesse: " + this.vitesse);
+        console.log("pos("+this.x+","+this.y+")\n");
+
+        this.vitesse = this.vitesse - 0.1;
 
         if (this.vitesse < 0) this.vitesse = 0;
     }
