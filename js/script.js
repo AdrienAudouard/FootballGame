@@ -7,8 +7,8 @@ const CAGE_HEIGHT = 200;
 const BALLON_WIDTH = 30;
 const ROND_WIDTH = 900;
 const MAP_HEIGHT = 500;
-const COLOR_1 = ['rgb(0, 0, 255)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
-const COLOR_2 = ['rgb(55, 131, 56)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
+let COLOR_1 = ['rgb(0, 0, 255)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
+let COLOR_2 = ['rgb(55, 131, 56)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
 const CURSEUR_FORCE_WIDTH = 30;
 const CURSEUR_FORCE_HEIGHT = 500;
 const COLORS_PICKER = [
@@ -304,12 +304,29 @@ function GameFramework() {
         let x = e.clientX;
         let y = e.clientY;
 
-        console.log('click');
-
         let j = clickDansJoueur(x, y);
+        let dClicked = drapeauGauche.onClick(x, y);
+
+        if (!dClicked.clicked) {
+            dClicked = drapeauDroit.onClick(x, y);
+        }
+
+        if (colorPicker.isClicked(x, y)) {
+            console.log("couleur !");
+        }
 
 
-        if (j) {
+        colorPicker.estVisible = false;
+
+        if (dClicked.clicked) {
+            colorPicker.estVisible = true;
+            colorPicker.y = dClicked.y;
+            colorPicker.x = dClicked.x - colorPicker.width;
+            colorPicker.indexSelected = dClicked.index;
+            colorPicker.flagSelected = dClicked.flag;
+        }
+
+        else if (j) {
             console.log('Click dans joueur');
 
             curseurTir.estVisible = true;
@@ -327,6 +344,8 @@ function GameFramework() {
         else if (curseurTir.estVisible) {
             tir();
         }
+
+
     }
 
     function tir() {
@@ -369,7 +388,6 @@ function GameFramework() {
         let dansJoueur = false;
 
         equipes.forEach((eq) => {
-            "use strict";
            eq.joueurs.forEach((j) => {
                if (j.estDans(e.clientX, e.clientY)) dansJoueur = true;
            }) ;
@@ -378,7 +396,8 @@ function GameFramework() {
         if ( dansJoueur
             ||drapeauDroit.estDans(e.clientX, e.clientY)
             || drapeauGauche.estDans(e.clientX, e.clientY)
-            || curseurForce.estDans(e.clientX, e.clientY)) {
+            || curseurForce.estDans(e.clientX, e.clientY)
+            || colorPicker.estDans(e.clientX, e.clientY)) {
             document.body.style.cursor = 'pointer';
         } else {
             document.body.style.cursor = 'default';
@@ -676,7 +695,7 @@ class Joueur extends Rond {
         ctx.fillStyle = 'black';
 
         ctx.beginPath();
-        this.arc(ctx, this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
+        ctx.arc(this.width / 2, this.height / 2, this.width / 2, 0, 2*Math.PI, false);
         ctx.closePath();
         ctx.fill();
 
@@ -918,11 +937,74 @@ class CurseurForce extends ObjetGraphique {
 class ColorPicker extends ObjetGraphique {
     constructor(x, y) {
         super(x,y, 200, 200);
-        this.estVisible = true;
+        this.estVisible = false;
+
+        this.indexSelected = null;
+        this.flagSelected = null;
     }
 
     estDans(x, y) {
         if (!this.estVisible) return false;
+
+        let margeW = this.width * 0.1;
+        let margeH = this.height * 0.1;
+
+        let w = this.width - 4*margeW;
+        let h = this.height - 4*margeH;
+
+
+        let minY = this.y;
+
+        for (let i = 0; i < 3; i++) {
+            minY += margeH;
+            let maxY = minY + h / 3;
+
+            for (let j = 0; j < 3; j++) {
+                let minX = this.x + margeW + j * (margeW + w / 3);
+                let maxX = minX + w / 3;
+
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    return true;
+                }
+            }
+
+            minY += h / 3;
+        }
+
+        return false;
+    }
+
+    isClicked(x, y) {
+        if (!this.estVisible) return false;
+
+        let margeW = this.width * 0.1;
+        let margeH = this.height * 0.1;
+
+        let w = this.width - 4*margeW;
+        let h = this.height - 4*margeH;
+
+
+        let minY = this.y;
+
+        for (let i = 0; i < 3; i++) {
+            minY += margeH;
+            let maxY = minY + h / 3;
+
+            for (let j = 0; j < 3; j++) {
+                let minX = this.x + margeW + j * (margeW + w / 3);
+                let maxX = minX + w / 3;
+
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    console.log(';,fenb');
+                    this.flagSelected.colors[this.indexSelected] = COLORS_PICKER[i][j];
+                    return true;
+                }
+            }
+
+            minY += h / 3;
+        }
+
+        return false;
     }
 
     draw(ctx) {
@@ -944,6 +1026,16 @@ class ColorPicker extends ObjetGraphique {
         ctx.closePath();
 
         ctx.fill();
+
+        ctx.translate(this.width, 10);
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(10, 10);
+        ctx.lineTo(0, 20);
+        ctx.fill();
+
+        ctx.translate(-this.width, -10);
 
         let margeW = this.width * 0.1;
         let margeH = this.height * 0.1;
@@ -972,6 +1064,7 @@ class Drapeau extends ObjetGraphique {
         super(x, y, FLAG_WIDTH, FLAG_HEIGHT);
 
         this.colors = colors;
+
     }
 
     draw(ctx) {
@@ -986,4 +1079,30 @@ class Drapeau extends ObjetGraphique {
 
         ctx.restore();
     }
+
+    onClick(x, y) {
+        let minY = this.y;
+        let maxY = minY + this.height;
+
+        for (let i = 0; i < 3; i++) {
+            let minX = this.x + i * this.width / 3;
+            let maxX = minX + this.width / 3;
+
+            if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                return {
+                    clicked: true,
+                    index: i,
+                    y: minY,
+                    x: minX,
+                    flag: this
+                };
+            }
+        }
+
+        return {
+            clicked: false
+        }
+    }
+
+
 }
