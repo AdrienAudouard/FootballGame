@@ -315,9 +315,6 @@ function GameFramework() {
             console.log("couleur !");
         }
 
-
-        colorPicker.estVisible = false;
-
         if (dClicked.clicked) {
             colorPicker.estVisible = true;
             colorPicker.y = dClicked.y;
@@ -343,6 +340,10 @@ function GameFramework() {
 
         else if (curseurTir.estVisible) {
             tir();
+        }
+
+        if (!dClicked.clicked) {
+            colorPicker.estVisible = false;
         }
 
 
