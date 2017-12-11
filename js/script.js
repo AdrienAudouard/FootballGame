@@ -80,6 +80,8 @@ function GameFramework() {
 
         ctx = canvas.getContext("2d");
 
+        initColors();
+
         let x = w / 2 - ROND_WIDTH / 2;
         let y = h / 2 - MAP_HEIGHT / 2;
 
@@ -108,9 +110,21 @@ function GameFramework() {
         drapeauGauche = new Drapeau(xDrapeau, yDrapeau, COLOR_1);
         drapeauDroit = new Drapeau(xDrapeau + map.width / 2, yDrapeau, COLOR_2);
 
+
+
         reset();
 
         requestAnimationFrame(draw);
+    }
+
+    function initColors() {
+        for (let i = 0; i < 3; i++) {
+            COLOR_1[i] = getCookie("COLOR_1_" + i)  === "" ? COLOR_1[i] : getCookie("COLOR_1_" + i);
+        }
+
+        for (let i = 0; i < 3; i++) {
+            COLOR_2[i] = getCookie("COLOR_2_" + i)  === "" ? COLOR_2[i] : getCookie("COLOR_2_" + i);
+        }
     }
 
     function reset() {
@@ -274,32 +288,6 @@ function GameFramework() {
         requestAnimationFrame(draw);
     }
 
-    function drawFlags() {
-        ctx.save();
-
-        let flagWidth = 90;
-        let flagHeight = 60;
-
-        let y = map.y / 2 - flagHeight / 2;
-        let x = map.x + map.width / 4 - flagWidth / 2;
-
-        ctx.translate(x, y);
-
-        for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = COLOR_1[i];
-            ctx.fillRect(i * flagWidth / 3, 0, flagWidth / 3, flagHeight);
-        }
-
-        ctx.translate(map.width / 2, 0);
-
-        for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = COLOR_2[i];
-            ctx.fillRect(i * flagWidth / 3, 0, flagWidth / 3, flagHeight);
-        }
-
-        ctx.restore();
-    }
-
     function onClick(e) {
         let x = e.clientX;
         let y = e.clientY;
@@ -350,13 +338,7 @@ function GameFramework() {
     }
 
     function tir() {
-        console.log('tir');
-
         curseurTir.joueur.angle = curseurTir.angle;
-        console.log("force: " + curseurForce.valeur);
-        console.log("angle: " + curseurTir.angle);
-        console.log("x: " + curseurTir.joueur.x);
-        console.log("y: " + curseurTir.joueur.y);
 
         curseurTir.joueur.vitesse = 10.0 * parseFloat(curseurForce.valeur);
 
@@ -405,7 +387,6 @@ function GameFramework() {
         }
 
 
-
         if (!curseurTir.estVisible) return;
 
         curseurTir.angle = calculerAngle(e.clientX, e.clientY);
@@ -447,7 +428,7 @@ class ObjetGraphique {
     }
 
     estDans(x, y) {
-        return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.width;
+        return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
     }
 
     draw(ctx) {
@@ -556,6 +537,11 @@ class Rond extends ObjetGraphique {
 
     inverserVy() {
         this.angle = 2 * Math.PI - this.angle;
+    }
+
+    recule() {
+        this.x -= Math.cos(this.angle) * this.vitesse;
+        this.y -= Math.sin(this.angle) * this.vitesse;
     }
 }
 
@@ -997,7 +983,9 @@ class ColorPicker extends ObjetGraphique {
 
                 if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
                     console.log(';,fenb');
-                    this.flagSelected.colors[this.indexSelected] = COLORS_PICKER[i][j];
+                    this.flagSelected.setColor(this.indexSelected, COLORS_PICKER[i][j]);
+
+                    //this.flagSelected.colors[this.indexSelected] = COLORS_PICKER[i][j];
                     return true;
                 }
             }
@@ -1081,6 +1069,14 @@ class Drapeau extends ObjetGraphique {
         ctx.restore();
     }
 
+    setColor(index, color) {
+        let cookie = this.colors == COLOR_1 ? "COLOR_1_" : "COLOR_2_";
+
+        this.colors[index] = color;
+
+        setCookie(cookie + index, color, 100);
+    }
+
     onClick(x, y) {
         let minY = this.y;
         let maxY = minY + this.height;
@@ -1104,6 +1100,33 @@ class Drapeau extends ObjetGraphique {
             clicked: false
         }
     }
+}
 
+// Methode from W3C
+// https://www.w3schools.com/js/js_cookies.asp
+function getCookie(cname) {
+    var name = cname + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+    var ca = decodedCookie.split(';');
+    for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
 
+// Methode from W3C
+// https://www.w3schools.com/js/js_cookies.asp
+function setCookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+    var expires = "expires="+ d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+
+    console.log("cookie:" + document.cookie);
 }
