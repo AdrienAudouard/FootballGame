@@ -116,6 +116,8 @@ class Cage extends ObjetGraphique {
     return (x >= this.x) && (x <= this.x + this.width) && (y >= this.y)
       && (y <= this.y + this.height);
   }
+
+  pointDansCercle() {}
 }
 
 class Map extends ObjetGraphique {
@@ -178,6 +180,10 @@ class Rond extends ObjetGraphique {
 
     this.vitesse = 0;
     this.angle = 0;
+  }
+
+  rayon() {
+    return this.width / 2;
   }
 
   inverserVx() {
@@ -373,7 +379,8 @@ class Joueur extends Rond {
   touche(j) {
     const pos = this.centre();
 
-    const d = Math.sqrt(((pos.x - j.x) * (pos.x - j.x)) + ((pos.y - j.y) * (pos.y - j.y)));
+    const d = Math.sqrt(((pos.x - j.centre().x) * (pos.x - j.centre().x))
+      + ((pos.y - j.centre().y) * (pos.y - j.centre().y)));
     return d <= this.width;
   }
 
@@ -721,6 +728,95 @@ class Drapeau extends ObjetGraphique {
   }
 }
 
+class GestionnaireCollision {
+  static carreDansCarre(c1, c2) {
+    return !(c2.x > c1.x + c1.width
+      || c2.x + c2.width < c1.x
+      || c2.y >= c1.y + c1.height
+      || c2.y + c2.height < c1.height);
+  }
+
+  static pointDansCarre(c, p) {
+    return p.x >= c.x
+      && p.x <= c.x + c.width
+      && p.y >= c.y
+      && p.y <= c.y + c.width;
+  }
+
+  /**
+   * Projection d'un point sur un segment
+   * @param p {int, int} Point
+   * @param a {int, int} Extremité du segment
+   * @param b {int, int} Extrémité du segment
+   * @returns {boolean} true si la projection est possible
+   */
+  static projectionSurSegment(p, a, b) {
+    const acx = p.x - a.x;
+    const acy = p.y - a.y;
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const bcx = p.x - b.x;
+    const bcy = p.y - b.y;
+    const s1 = (acx * abx) + (acy * aby);
+    const s2 = (bcx - abx) + (bcy - aby);
+
+    return s1 * s2 <= 0;
+  }
+
+  /**
+   * Collision d'un point dans un cercle
+   * @param c Cercle
+   * @param r Rayon du cercle
+   * @param p point
+   * @returns {boolean} true s'il y a collision
+   */
+  static pointDansCercle(c, r, p) {
+    const d = ((p.x - c.x) * (p.x - c.x)) + ((p.y - c.y) * (p.y - c.y));
+
+    return d <= (r * r);
+  }
+
+  /**
+   * Collision entre deux cercles
+   * @param c1 Premier cercle
+   * @param c2 Deuxieme cercle
+   * @param r1 Rayon du premier cercle
+   * @param r2 Rayon du deuxieme cercle
+   * @returns {boolean} true s'il y a collision
+   */
+  static cercleCercle(c1, c2, r1, r2) {
+    const d = ((c1.x - c2.x) * (c1.x - c2.x)) + ((c1.y - c2.y) * (c1.y - c2.y));
+
+    return d <= (r1 + r2) * (r1 + r2);
+  }
+
+  static cercleDansCarre(cercle, carre) {
+    if (!this.carreDansCarre(cercle, carre)) return false;
+
+    if (this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x, y: carre.y })
+      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x, y: carre.y + carre.height })
+      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x + carre.width, y: carre.y })
+      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x + carre.width, y: carre.y + carre.height })) {
+
+      console.log('oui');
+      return true;
+    }
+
+    if (this.pointDansCarre(carre, cercle.centre())) {
+      console.log('oui 2');
+      return true;
+    }
+
+    const projVerticale = this.projectionSurSegment(cercle.centre(),
+      { x: carre.x, y: carre.y }, { x: carre.x, y: carre.y + carre.height });
+    const projHorizontale = this.projectionSurSegment(cercle.centre(),
+      { x: carre.x, y: carre.y }, { x: carre.x + carre.width, y: carre.y });
+
+    console.log('oui 3');
+    return projHorizontale || projVerticale;
+  }
+}
+
 function GameFramework() {
   let canvas;
   let w;
@@ -785,15 +881,16 @@ function GameFramework() {
   }
 
   function gererCollisionCage(j) {
-    if (map.cageDroite.estDans(j.x, j.y)) {
-      console.log('cage droite');
+    if (GestionnaireCollision.cercleDansCarre(j, map.cageDroite)) {
+      console.log(`${Date.now()}: cage droite`);
     }
 
-    if (map.cageGauche.estDans(j.x, j.y)) {
-      console.log('cage gauche');
+    if (GestionnaireCollision.cercleDansCarre(j, map.cageGauche)) {
+      console.log(`${Date.now()}: cage gauche`);
     }
 
-    return map.cageDroite.estDans(j.x, j.y) || map.cageGauche.estDans(j.x, j.y);
+    return GestionnaireCollision.cercleDansCarre(j, map.cageDroite)
+      || GestionnaireCollision.cercleDansCarre(j, map.cageDroite);
   }
 
   function collisonBords(e) {
@@ -846,7 +943,7 @@ function GameFramework() {
     equipes.forEach((e) => {
       // Pour chaque joueur de chaque équipe
       e.joueurs.forEach((j) => {
-        if (j.touche(ballon)) {
+        if (GestionnaireCollision.cercleCercle(j, ballon, j.rayon(), ballon.rayon())) {
           gererCollision(j, ballon);
         }
 
@@ -858,7 +955,7 @@ function GameFramework() {
               return;
             }
 
-            if (j.touche(j2)) {
+            if (GestionnaireCollision.cercleCercle(j, j2)) {
               gererCollision(j, j2);
             }
           });
