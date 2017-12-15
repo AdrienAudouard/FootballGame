@@ -14,3 +14,4 @@ A two player game inspired by [Soccer Stars by MiniClip](https://www.miniclip.co
 
 * Change the colors of each players by clicking the flags
 * Change the shooting power by adjusting the gage on the left
+* Colors are saved in the cookies
