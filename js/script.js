@@ -533,16 +533,6 @@ class CurseurForce extends ObjetGraphique {
     ctx.restore();
   }
 
-  estDans(x, y) {
-    const xMin = this.x + this.margeCote;
-    const yMin = this.y + this.margeCote;
-
-    const xMax = xMin + (this.width - (2 * this.margeCote));
-    const yMax = yMin + (this.height - (2 * this.margeCote));
-
-    return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
-  }
-
   definirNouvelValeur(y) {
     const yMin = this.y + this.margeCote;
     const yMax = this.height - (2 * this.margeCote);
@@ -558,68 +548,6 @@ class ColorPicker extends ObjetGraphique {
     this.estVisible = false;
     this.indexSelected = null;
     this.flagSelected = null;
-  }
-
-  estDans(x, y) {
-    if (!this.estVisible) return false;
-
-    const margeW = this.width * 0.1;
-    const margeH = this.height * 0.1;
-
-    const w = this.width - (4 * margeW);
-    const h = this.height - (4 * margeH);
-
-
-    let minY = this.y;
-
-    for (let i = 0; i < 3; i += 1) {
-      minY += margeH;
-      const maxY = minY + (h / 3);
-
-      for (let j = 0; j < 3; j += 1) {
-        const minX = (this.x + margeW) + (j * (margeW + (w / 3)));
-        const maxX = minX + (w / 3);
-
-        if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-          return true;
-        }
-      }
-
-      minY += h / 3;
-    }
-
-    return false;
-  }
-
-  isClicked(x, y) {
-    if (!this.estVisible) return false;
-
-    const margeW = this.width * 0.1;
-    const margeH = this.height * 0.1;
-    const w = this.width - (4 * margeW);
-    const h = this.height - (4 * margeH);
-
-    let minY = this.y;
-
-    for (let i = 0; i < 3; i += 1) {
-      const maxY = minY + (h / 3);
-
-      minY += margeH;
-
-      for (let j = 0; j < 3; j += 1) {
-        const minX = this.x + margeW + (j * (margeW + (w / 3)));
-        const maxX = minX + (w / 3);
-
-        if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-          this.flagSelected.setColor(this.indexSelected, COLORS_PICKER[i][j]);
-          return true;
-        }
-      }
-
-      minY += h / 3;
-    }
-
-    return false;
   }
 
   draw(ctx) {
@@ -700,30 +628,6 @@ class Drapeau extends ObjetGraphique {
 
     setCookie(cookie + index, color, 100);
   }
-
-  onClick(x, y) {
-    const minY = this.y;
-    const maxY = minY + this.height;
-
-    for (let i = 0; i < 3; i += 1) {
-      const minX = this.x + (i * (this.width / 3));
-      const maxX = minX + (this.width / 3);
-
-      if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-        return {
-          clicked: true,
-          index: i,
-          y: minY,
-          x: minX,
-          flag: this,
-        };
-      }
-    }
-
-    return {
-      clicked: false,
-    };
-  }
 }
 
 class GestionnaireCollision {
@@ -734,11 +638,11 @@ class GestionnaireCollision {
       || c2.y + c2.height <= c1.height);
   }
 
-  static pointDansCarre(c, p) {
+  static pointDansRectangle(c, p) {
     return p.x >= c.x
       && p.x <= c.x + c.width
       && p.y >= c.y
-      && p.y <= c.y + c.width;
+      && p.y <= c.y + c.height;
   }
 
   /**
@@ -772,7 +676,7 @@ class GestionnaireCollision {
    * Projection d'un point sur un segment
    * @param p {int, int} Point
    * @param a {int, int} Extremité du segment
-   * @param b {int, int} Extrémité du segment
+   * @param b {{int, int}} Extrémité du segment
    * @returns {boolean} true si la projection est possible
    */
   static projectionSurSegment(p, a, b) {
@@ -788,30 +692,106 @@ class GestionnaireCollision {
     return s1 * s2 <= 0;
   }
 
-  static cercleDansCarre(cercle, carre) {
-    if (!this.carreDansCarre(cercle, carre)) return false;
+  /**
+   * Indique s'il y a une collision entre un cercle et un rectangle
+   * @param c {Rond} Cercle
+   * @param r {ObjetGraphique} Rectangle
+   * @returns {boolean} true s'il y a une collision
+   */
+  static cercleDansCarre(c, r) {
+    if (!this.carreDansCarre(c, r)) return false;
 
-    if (this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x, y: carre.y })
-      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x, y: carre.y + carre.height })
-      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x + carre.width, y: carre.y })
-      || this.pointDansCercle(cercle, cercle.rayon(), { x: carre.x + carre.width, y: carre.y + carre.height })) {
+    if (this.pointDansCercle(c, c.rayon(), { x: r.x, y: r.y })
+      || this.pointDansCercle(c, c.rayon(), { x: r.x, y: r.y + r.height })
+      || this.pointDansCercle(c, c.rayon(), { x: r.x + r.width, y: r.y })
+      || this.pointDansCercle(c, c.rayon(), { x: r.x + r.width, y: r.y + r.height })) {
 
-      console.log('oui');
       return true;
     }
 
-    if (this.pointDansCarre(carre, cercle.centre())) {
-      console.log('oui 2');
+    if (this.pointDansRectangle(r, c.centre())) {
       return true;
     }
 
-    const projVerticale = this.projectionSurSegment(cercle.centre(),
-      { x: carre.x, y: carre.y }, { x: carre.x, y: carre.y + carre.height });
-    const projHorizontale = this.projectionSurSegment(cercle.centre(),
-      { x: carre.x, y: carre.y }, { x: carre.x + carre.width, y: carre.y });
+    const projVerticale = this.projectionSurSegment(c.centre(),
+      { x: r.x, y: r.y }, { x: r.x, y: r.y + r.height });
+    const projHorizontale = this.projectionSurSegment(c.centre(),
+      { x: r.x, y: r.y }, { x: r.x + r.width, y: r.y });
 
-    console.log('oui 3');
     return projHorizontale || projVerticale;
+  }
+
+  static dansDrapeau(d, p) {
+    const y = d.y;
+
+    const w = d.width / 3;
+    const h = d.height;
+
+    for (let i = 0; i < 3; i += 1) {
+      const x = d.x + (i * w);
+
+      const obj = new ObjetGraphique(x, y, w, h);
+
+      if (this.pointDansRectangle(obj, p)) {
+        return {
+          clicked: true,
+          index: i,
+          y,
+          x,
+          flag: d,
+        };
+      }
+    }
+
+    return {
+      clicked: false,
+    };
+  }
+
+  static dansColorPicker(c, p) {
+    if (!c.estVisible) return { clicked: false };
+
+    const margeW = c.width * 0.1;
+    const margeH = c.height * 0.1;
+
+    const w = c.width - (4 * margeW);
+    const h = c.height - (4 * margeH);
+
+    let minY = c.y;
+
+    for (let i = 0; i < 3; i += 1) {
+      minY += margeH;
+
+      for (let j = 0; j < 3; j += 1) {
+        const minX = (c.x + margeW) + (j * (margeW + (w / 3)));
+
+        const obj = new ObjetGraphique(minX, minY, w / 3, h / 3);
+
+        if (this.pointDansRectangle(obj, p)) {
+          return {
+            clicked: true,
+            i,
+            j,
+          };
+        }
+      }
+
+      minY += h / 3;
+    }
+
+    return { clicked: false };
+  }
+
+  static dansCurseurForce(c, p) {
+    const x = c.x + c.margeCote;
+    const y = c.y + c.margeCote;
+
+    const w = c.width - (2 * c.margeCote);
+    const h = c.height - (2 * c.margeCote);
+
+    const obj = new ObjetGraphique(x, y, w, h);
+
+    return this.pointDansRectangle(obj, p);
   }
 }
 
@@ -882,13 +862,13 @@ function GameFramework() {
     // S'il y a collision avec la cage droite
     if (GestionnaireCollision.cercleDansCarre(e, map.cageDroite)) {
       if (e.x + e.width >= map.cageDroite.x + map.cageDroite.width) {
-        e.x = map.cageDroite.x + map.cageDroite.width - e.width;
+        e.x = (map.cageDroite.x + map.cageDroite.width) - e.width;
         e.inverserVx();
       }
       if (e.y <= map.cageDroite.y) {
         e.y = map.cageDroite.y;
         e.inverserVy();
-      } else if (e.y + e.height >= map.cageDroite.y + map.cageDroite.height){
+      } else if (e.y + e.height >= map.cageDroite.y + map.cageDroite.height) {
         e.y = (map.cageDroite.y + map.cageDroite.height) - e.height;
         e.inverserVy();
       }
@@ -901,7 +881,7 @@ function GameFramework() {
       if (e.y <= map.cageGauche.y) {
         e.y = map.cageGauche.y;
         e.inverserVy();
-      } else if (e.y + e.height >= map.cageGauche.y + map.cageGauche.height){
+      } else if (e.y + e.height >= map.cageGauche.y + map.cageGauche.height) {
         e.y = (map.cageGauche.y + map.cageGauche.height) - e.height;
         e.inverserVy();
       }
@@ -1062,27 +1042,38 @@ function GameFramework() {
   }
 
   function onClick(e) {
-    const x = e.clientX;
-    const y = e.clientY;
-    const j = clickDansJoueur(x, y);
+    const p = { x: e.clientX, y: e.clientY };
 
-    let dClicked = drapeauGauche.onClick(x, y);
+    const c = GestionnaireCollision.dansColorPicker(colorPicker, p);
 
-    if (!dClicked.clicked) {
-      dClicked = drapeauDroit.onClick(x, y);
+    if (c.clicked) {
+      console.log('couleur !');
+      colorPicker.estVisible = false;
+      colorPicker.flagSelected.setColor(colorPicker.indexSelected, COLORS_PICKER[c.i][c.j]);
+
+      return;
     }
 
-    if (colorPicker.isClicked(x, y)) {
-      console.log('couleur !');
+    let dClicked = GestionnaireCollision.dansDrapeau(drapeauGauche, p);
+
+    if (!dClicked.clicked) {
+      dClicked = GestionnaireCollision.dansDrapeau(drapeauDroit, p);
     }
 
     if (dClicked.clicked) {
+      console.log('felsdkvjd');
       colorPicker.estVisible = true;
       colorPicker.y = dClicked.y;
       colorPicker.x = dClicked.x - colorPicker.width;
       colorPicker.indexSelected = dClicked.index;
       colorPicker.flagSelected = dClicked.flag;
-    } else if (j) {
+
+      return;
+    }
+
+    const j = clickDansJoueur(p.x, p.y);
+
+    if (j) {
       console.log('Click dans joueur');
 
       curseurTir.estVisible = true;
@@ -1091,14 +1082,18 @@ function GameFramework() {
       const pos = j.centre();
       curseurTir.x = pos.x - (curseurTir.width / 2);
       curseurTir.y = pos.y - (curseurTir.height / 2);
-    } else if (curseurForce.estDans(x, y)) {
-      curseurForce.definirNouvelValeur(y);
-    } else if (curseurTir.estVisible) {
-      tir();
+
+      return;
     }
 
-    if (!dClicked.clicked) {
-      colorPicker.estVisible = false;
+    if (GestionnaireCollision.dansCurseurForce(curseurForce, p)) {
+      curseurForce.definirNouvelValeur(p.y);
+
+      return;
+    }
+
+    if (curseurTir.estVisible) {
+      tir();
     }
   }
 
@@ -1110,18 +1105,19 @@ function GameFramework() {
 
   function onMouseMove(e) {
     let dansJoueur = false;
+    const p = { x: e.clientX, y: e.clientY };
 
     equipes.forEach((eq) => {
       eq.joueurs.forEach((j) => {
-        if (j.estDans(e.clientX, e.clientY)) dansJoueur = true;
+        if (GestionnaireCollision.pointDansCercle(j.centre(), j.rayon(), p)) dansJoueur = true;
       });
     });
 
     if (dansJoueur
-      || drapeauDroit.estDans(e.clientX, e.clientY)
-      || drapeauGauche.estDans(e.clientX, e.clientY)
-      || curseurForce.estDans(e.clientX, e.clientY)
-      || colorPicker.estDans(e.clientX, e.clientY)) {
+      || GestionnaireCollision.pointDansRectangle(drapeauDroit, p)
+      || GestionnaireCollision.pointDansRectangle(drapeauGauche, p)
+      || GestionnaireCollision.dansCurseurForce(curseurForce, p)
+      || GestionnaireCollision.dansColorPicker(colorPicker, p).clicked) {
       document.body.style.cursor = 'pointer';
     } else {
       document.body.style.cursor = 'default';
