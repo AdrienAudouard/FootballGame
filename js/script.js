@@ -116,8 +116,6 @@ class Cage extends ObjetGraphique {
     return (x >= this.x) && (x <= this.x + this.width) && (y >= this.y)
       && (y <= this.y + this.height);
   }
-
-  pointDansCercle() {}
 }
 
 class Map extends ObjetGraphique {
@@ -127,8 +125,8 @@ class Map extends ObjetGraphique {
 
     const yCage = (this.height / 2) - (CAGE_HEIGHT / 2);
 
-    this.cageGauche = new Cage(-CAGE_WIDTH, yCage);
-    this.cageDroite = new Cage(this.width, yCage);
+    this.cageGauche = new Cage(this.x + -CAGE_WIDTH, this.y + yCage);
+    this.cageDroite = new Cage(this.x + this.width, this.y + yCage);
   }
 
   draw(ctx) {
@@ -167,10 +165,10 @@ class Map extends ObjetGraphique {
 
     ctx.strokeRect(0, 0, this.width, this.height);
 
+    ctx.restore();
+
     this.cageDroite.draw(ctx);
     this.cageGauche.draw(ctx);
-
-    ctx.restore();
   }
 }
 
@@ -730,10 +728,10 @@ class Drapeau extends ObjetGraphique {
 
 class GestionnaireCollision {
   static carreDansCarre(c1, c2) {
-    return !(c2.x > c1.x + c1.width
-      || c2.x + c2.width < c1.x
+    return !(c2.x >= c1.x + c1.width
+      || c2.x + c2.width <= c1.x
       || c2.y >= c1.y + c1.height
-      || c2.y + c2.height < c1.height);
+      || c2.y + c2.height <= c1.height);
   }
 
   static pointDansCarre(c, p) {
@@ -741,26 +739,6 @@ class GestionnaireCollision {
       && p.x <= c.x + c.width
       && p.y >= c.y
       && p.y <= c.y + c.width;
-  }
-
-  /**
-   * Projection d'un point sur un segment
-   * @param p {int, int} Point
-   * @param a {int, int} Extremité du segment
-   * @param b {int, int} Extrémité du segment
-   * @returns {boolean} true si la projection est possible
-   */
-  static projectionSurSegment(p, a, b) {
-    const acx = p.x - a.x;
-    const acy = p.y - a.y;
-    const abx = b.x - a.x;
-    const aby = b.y - a.y;
-    const bcx = p.x - b.x;
-    const bcy = p.y - b.y;
-    const s1 = (acx * abx) + (acy * aby);
-    const s2 = (bcx - abx) + (bcy - aby);
-
-    return s1 * s2 <= 0;
   }
 
   /**
@@ -788,6 +766,26 @@ class GestionnaireCollision {
     const d = ((c1.x - c2.x) * (c1.x - c2.x)) + ((c1.y - c2.y) * (c1.y - c2.y));
 
     return d <= (r1 + r2) * (r1 + r2);
+  }
+
+  /**
+   * Projection d'un point sur un segment
+   * @param p {int, int} Point
+   * @param a {int, int} Extremité du segment
+   * @param b {int, int} Extrémité du segment
+   * @returns {boolean} true si la projection est possible
+   */
+  static projectionSurSegment(p, a, b) {
+    const apx = p.x - a.x;
+    const apy = p.y - a.y;
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const bpx = p.x - b.x;
+    const bpy = p.y - b.y;
+    const s1 = (apx * abx) + (apy * aby);
+    const s2 = (bpx - abx) + (bpy - aby);
+
+    return s1 * s2 <= 0;
   }
 
   static cercleDansCarre(cercle, carre) {
@@ -880,52 +878,45 @@ function GameFramework() {
     j2.vitesse = Math.max(j.vitesse, j2.vitesse);
   }
 
-  function gererCollisionCage(j) {
-    if (GestionnaireCollision.cercleDansCarre(j, map.cageDroite)) {
-      console.log(`${Date.now()}: cage droite`);
-    }
-
-    if (GestionnaireCollision.cercleDansCarre(j, map.cageGauche)) {
-      console.log(`${Date.now()}: cage gauche`);
-    }
-
-    return GestionnaireCollision.cercleDansCarre(j, map.cageDroite)
-      || GestionnaireCollision.cercleDansCarre(j, map.cageDroite);
-  }
-
   function collisonBords(e) {
-    if (gererCollisionCage(e)) {
-      console.log('collision cage');
-    } else {
-      let collision = false;
-
-      if (e.x <= map.x) {
-        collision = true;
-
-        e.x = map.x;
-
+    // S'il y a collision avec la cage droite
+    if (GestionnaireCollision.cercleDansCarre(e, map.cageDroite)) {
+      if (e.x + e.width >= map.cageDroite.x + map.cageDroite.width) {
+        e.x = map.cageDroite.x + map.cageDroite.width - e.width;
         e.inverserVx();
-      } else if (e.x + e.width >= map.x + map.width) {
-        collision = true;
-
-        e.x = (map.x + map.width) - e.width;
-        e.inverserVx();
-      } else if (e.y <= map.y) {
-        collision = true;
-
-        e.y = map.y;
+      }
+      if (e.y <= map.cageDroite.y) {
+        e.y = map.cageDroite.y;
         e.inverserVy();
-      } else if (e.y + e.height >= map.y + map.height) {
-        collision = true;
-
-        e.y = (map.y + map.height) - e.width;
+      } else if (e.y + e.height >= map.cageDroite.y + map.cageDroite.height){
+        e.y = (map.cageDroite.y + map.cageDroite.height) - e.height;
         e.inverserVy();
       }
-
-      if (collision) {
-        console.log('REBONDI');
-        e.vitesse *= 0.75;
+      // S'il y a collision avec la cage gauche
+    } else if (GestionnaireCollision.cercleDansCarre(e, map.cageGauche)) {
+      if (e.x <= map.cageGauche.x) {
+        e.x = map.cageGauche.x;
+        e.inverserVx();
       }
+      if (e.y <= map.cageGauche.y) {
+        e.y = map.cageGauche.y;
+        e.inverserVy();
+      } else if (e.y + e.height >= map.cageGauche.y + map.cageGauche.height){
+        e.y = (map.cageGauche.y + map.cageGauche.height) - e.height;
+        e.inverserVy();
+      }
+    } else if (e.x <= map.x) {
+      e.x = map.x;
+      e.inverserVx();
+    } else if (e.x + e.width >= map.x + map.width) {
+      e.x = (map.x + map.width) - e.width;
+      e.inverserVx();
+    } else if (e.y <= map.y) {
+      e.y = map.y;
+      e.inverserVy();
+    } else if (e.y + e.height >= map.y + map.height) {
+      e.y = (map.y + map.height) - e.width;
+      e.inverserVy();
     }
   }
 
