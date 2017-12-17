@@ -1333,8 +1333,6 @@ function mouseMoveDocument(e) {
 }
 
 function initDocument() {
-  console.log('init');
-
   gf = new GameFramework();
   gf.init();
 }
