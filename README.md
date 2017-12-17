@@ -1,4 +1,4 @@
-# FootballGame
+# HTML5 FootballGame
 
 A HTML 5 football game inspired by [Soccer Stars by MiniClip](https://www.miniclip.com/games/soccer-stars-mobile/fr/)
 
@@ -6,7 +6,7 @@ A HTML 5 football game inspired by [Soccer Stars by MiniClip](https://www.minicl
 
 ## Running 
 
-* Open index.html
+* Open ``` index.html ```
 
 ## Rules
 * One shoot by turn
