@@ -1074,12 +1074,12 @@ function GameFramework() {
       soundsManager.collisionJoueurs();
     }
 
-    if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageGauche)) {
+    if (GestionnaireCollision.pointDansRectangle(map.cageGauche, ballon.centre())) {
       score.DROITE += 1;
       reset();
       soundsManager.but();
       console.log('But');
-    } else if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageDroite)) {
+    } else if (GestionnaireCollision.pointDansRectangle(map.cageDroite, ballon.centre())) {
       score.GAUCHE += 1;
       reset();
       soundsManager.but();
