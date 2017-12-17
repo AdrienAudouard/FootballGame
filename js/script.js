@@ -1,3 +1,6 @@
+// TODO: Gerer les buts
+// TODO: Corriger bugs de collisions
+
 const CAGE_WIDTH = 30;
 const CAGE_HEIGHT = 200;
 const BALLON_WIDTH = 30;
@@ -83,17 +86,64 @@ class ObjetGraphique {
   }
 }
 
+class ImageObjet extends ObjetGraphique {
+  constructor(x, y, src) {
+    super(x, y, 32, 32);
+
+    this.image = new Image();
+    this.image.src = src;
+  }
+
+  draw(ctx) {
+    ctx.save();
+
+    ctx.translate(this.x, this.y);
+    ctx.drawImage(this.image, 0, 0, this.width, this.height);
+
+    ctx.restore();
+  }
+}
+
+class ReloadButton extends ImageObjet {
+  constructor(x, y) {
+    super(x, y, 'img/icon.png');
+  }
+}
+
+class SoundButton extends ImageObjet {
+  constructor(x, y) {
+    super(x, y, 'img/speaker.png');
+
+    this.sound = 'img/speaker.png';
+    this.noSound = 'img/no_speaker.png';
+  }
+
+  inverser() {
+    this.image.src = (this.image.src.includes(this.sound)) ? this.noSound : this.sound;
+
+    return this.image.src.includes(this.sound);
+  }
+}
+
 class Cage extends ObjetGraphique {
   constructor(x, y) {
     super(x, y, CAGE_WIDTH, CAGE_HEIGHT);
+  }
+
+  drawSol(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.fillStyle = '#27ae60';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    ctx.restore();
   }
 
   draw(ctx) {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.strokeStyle = 'white';
-    ctx.fillStyle = '#27ae60';
-    ctx.fillRect(0, 0, this.width, this.height);
+
     ctx.strokeRect(0, 0, this.width, this.height);
     ctx.lineWidth = 1;
 
@@ -166,9 +216,6 @@ class Map extends ObjetGraphique {
     ctx.strokeRect(0, 0, this.width, this.height);
 
     ctx.restore();
-
-    this.cageDroite.draw(ctx);
-    this.cageGauche.draw(ctx);
   }
 }
 
@@ -374,14 +421,6 @@ class Joueur extends Rond {
     return d <= (this.width / 2);
   }
 
-  touche(j) {
-    const pos = this.centre();
-
-    const d = Math.sqrt(((pos.x - j.centre().x) * (pos.x - j.centre().x))
-      + ((pos.y - j.centre().y) * (pos.y - j.centre().y)));
-    return d <= this.width;
-  }
-
   calculerAngle(j) {
     const p = j.centre();
     const p2 = this.centre();
@@ -414,18 +453,9 @@ class Equipe {
     this.doitJouer = false;
   }
 
-  resetPosition(map) {
-    for (let i = 0; i < this.joueurs.length; i += 1) {
-      const x = (this.cote === COTE.GAUCHE) ? map.x + this.joueurs[i].x
-        : ((map.x + map.width) - this.joueurs[i].x) - BALLON_WIDTH;
-      const y = map.y + this.joueurs[i].y;
-
-      this.joueurs[i].x = x;
-      this.joueurs[i].y = y;
-    }
-  }
-
   creerJoueurs(map) {
+    this.joueurs = [];
+
     POSITIONS.forEach((p) => {
       const x = (this.cote === COTE.GAUCHE) ? map.x + p.x
         : ((map.x + map.width) - p.x) - BALLON_WIDTH;
@@ -795,6 +825,58 @@ class GestionnaireCollision {
   }
 }
 
+function SoundsManager() {
+  let audioBords;
+  let audioJoueurs;
+  let audioBut;
+  let soundEnabled;
+
+  function init() {
+    audioBords = document.createElement('audio');
+    audioJoueurs = document.createElement('audio');
+    audioBut = document.createElement('audio');
+
+    audioBords.src = 'sounds/collisionBords.wav';
+    audioJoueurs.src = 'sounds/collisionJoueurs.wav';
+    audioBut.src = 'sounds/suuu.wav';
+
+    soundEnabled = true;
+  }
+
+  function collisionJoueurs() {
+    if (!soundEnabled) return;
+
+    audioJoueurs.pause();
+    audioJoueurs.play();
+  }
+
+  function collisionBords() {
+    if (!soundEnabled) return;
+
+    audioBords.pause();
+    audioBords.play();
+  }
+
+  function but() {
+    if (!soundEnabled) return;
+
+    audioBut.pause();
+    audioBut.play();
+  }
+
+  function setEnabled(v) {
+    soundEnabled = v;
+  }
+
+  return {
+    init,
+    collisionJoueurs,
+    collisionBords,
+    but,
+    setEnabled,
+  };
+}
+
 function GameFramework() {
   let canvas;
   let w;
@@ -810,6 +892,12 @@ function GameFramework() {
   let colorPicker;
   let drapeauGauche;
   let drapeauDroit;
+  let tirEnCours;
+  let dernierTir;
+  let reloadButton;
+  let soundButton;
+  let soundsManager;
+
 
   function initColors() {
     for (let i = 0; i < 3; i += 1) {
@@ -824,17 +912,33 @@ function GameFramework() {
 
     tour = COTE.GAUCHE;
     equipes[0].doitJouer = true;
+    equipes[1].doitJouer = false;
 
-    /*
-    equipes[ 0 ].resetPosition(map);
-    equipes[ 1 ].resetPosition(map);
+    equipes[0].creerJoueurs(map);
+    equipes[1].creerJoueurs(map);
 
-  */
     ballon = new Ballon((x + (map.width / 2))
       - (BALLON_WIDTH / 2), (y + (map.height / 2)) - (BALLON_WIDTH / 2));
   }
 
+  function fullReset() {
+    reset();
+    score.DROITE = 0;
+    score.GAUCHE = 0;
+  }
+
+  function checkTirEnCours() {
+    tirEnCours = false;
+    equipes.forEach((e) => {
+      e.joueurs.forEach((j) => {
+        if (j.vitesse > 0) tirEnCours = true;
+      });
+    });
+  }
+
   function update() {
+    checkTirEnCours();
+
     ballon.update();
 
     equipes.forEach((eq) => {
@@ -860,43 +964,71 @@ function GameFramework() {
 
   function collisonBords(e) {
     // S'il y a collision avec la cage droite
+    let collision = false;
+
     if (GestionnaireCollision.cercleDansCarre(e, map.cageDroite)) {
       if (e.x + e.width >= map.cageDroite.x + map.cageDroite.width) {
         e.x = (map.cageDroite.x + map.cageDroite.width) - e.width;
         e.inverserVx();
+
+        collision = true;
       }
       if (e.y <= map.cageDroite.y) {
         e.y = map.cageDroite.y;
         e.inverserVy();
+
+        collision = true;
       } else if (e.y + e.height >= map.cageDroite.y + map.cageDroite.height) {
         e.y = (map.cageDroite.y + map.cageDroite.height) - e.height;
         e.inverserVy();
+
+        collision = true;
       }
       // S'il y a collision avec la cage gauche
     } else if (GestionnaireCollision.cercleDansCarre(e, map.cageGauche)) {
       if (e.x <= map.cageGauche.x) {
         e.x = map.cageGauche.x;
         e.inverserVx();
+
+        collision = true;
       }
       if (e.y <= map.cageGauche.y) {
         e.y = map.cageGauche.y;
         e.inverserVy();
+
+        collision = true;
       } else if (e.y + e.height >= map.cageGauche.y + map.cageGauche.height) {
         e.y = (map.cageGauche.y + map.cageGauche.height) - e.height;
         e.inverserVy();
+
+        collision = true;
       }
+
+      collision = true;
     } else if (e.x <= map.x) {
       e.x = map.x;
       e.inverserVx();
+
+      collision = true;
     } else if (e.x + e.width >= map.x + map.width) {
       e.x = (map.x + map.width) - e.width;
       e.inverserVx();
+
+      collision = true;
     } else if (e.y <= map.y) {
       e.y = map.y;
       e.inverserVy();
+
+      collision = true;
     } else if (e.y + e.height >= map.y + map.height) {
       e.y = (map.y + map.height) - e.width;
       e.inverserVy();
+
+      collision = true;
+    }
+
+    if (collision) {
+      soundsManager.collisionBords();
     }
   }
 
@@ -910,12 +1042,15 @@ function GameFramework() {
       });
     });
 
+    let collision = false;
+
     // Pour toutes les equipes
     equipes.forEach((e) => {
       // Pour chaque joueur de chaque équipe
       e.joueurs.forEach((j) => {
         if (GestionnaireCollision.cercleCercle(j, ballon, j.rayon(), ballon.rayon())) {
           gererCollision(j, ballon);
+          collision = true;
         }
 
         // Pour chaque équipe
@@ -926,13 +1061,30 @@ function GameFramework() {
               return;
             }
 
-            if (GestionnaireCollision.cercleCercle(j, j2)) {
+            if (GestionnaireCollision.cercleCercle(j, j2, j.rayon(), j2.rayon())) {
+              collision = true;
               gererCollision(j, j2);
             }
           });
         });
       });
     });
+
+    if (collision) {
+      soundsManager.collisionJoueurs();
+    }
+
+    if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageGauche)) {
+      score.DROITE += 1;
+      reset();
+      soundsManager.but();
+      console.log('But');
+    } else if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageDroite)) {
+      score.GAUCHE += 1;
+      reset();
+      soundsManager.but();
+      console.log('But');
+    }
   }
 
   function draw() {
@@ -950,6 +1102,9 @@ function GameFramework() {
 
     map.draw(ctx);
 
+    map.cageDroite.drawSol(ctx);
+    map.cageGauche.drawSol(ctx);
+
     curseurForce.draw(ctx);
     curseurTir.draw(ctx);
 
@@ -962,12 +1117,23 @@ function GameFramework() {
 
     colorPicker.draw(ctx);
 
+    map.cageDroite.draw(ctx);
+    map.cageGauche.draw(ctx);
+
+    reloadButton.draw(ctx);
+    soundButton.draw(ctx);
+
     ctx.restore();
 
     requestAnimationFrame(draw);
   }
 
   function tir() {
+    if (tirEnCours) { return; }
+
+    tirEnCours = true;
+    dernierTir = tour;
+
     curseurTir.joueur.angle = curseurTir.angle;
     curseurTir.joueur.vitesse = 10.0 * parseFloat(curseurForce.valeur);
     curseurTir.estVisible = false;
@@ -990,6 +1156,14 @@ function GameFramework() {
     canvas.height = window.innerHeight;
     w = canvas.width;
     h = canvas.height;
+
+    reloadButton = new ReloadButton(20, 20);
+    soundButton = new SoundButton(w - 52, 20);
+
+    soundsManager = new SoundsManager();
+    soundsManager.init();
+
+    tirEnCours = false;
 
     ctx = canvas.getContext('2d');
 
@@ -1028,12 +1202,14 @@ function GameFramework() {
     requestAnimationFrame(draw);
   }
 
-  function clickDansJoueur(x, y) {
+  function clickDansJoueur(p) {
+    if (tirEnCours) return null;
+
     const equipe = equipes[tour];
 
     for (let k = 0; k < equipe.joueurs.length; k += 1) {
       const j = equipe.joueurs[k];
-      if (j.estDans(x, y)) {
+      if (GestionnaireCollision.pointDansCercle(j.centre(), j.rayon(), p)) {
         return j;
       }
     }
@@ -1045,6 +1221,18 @@ function GameFramework() {
     const p = { x: e.clientX, y: e.clientY };
 
     const c = GestionnaireCollision.dansColorPicker(colorPicker, p);
+
+    if (GestionnaireCollision.pointDansRectangle(reloadButton, p)) {
+      fullReset();
+
+      return;
+    }
+
+    if (GestionnaireCollision.pointDansRectangle(soundButton, p)) {
+      soundsManager.setEnabled(soundButton.inverser());
+
+      return;
+    }
 
     if (c.clicked) {
       console.log('couleur !');
@@ -1071,8 +1259,7 @@ function GameFramework() {
       return;
     }
 
-    const j = clickDansJoueur(p.x, p.y);
-
+    const j = clickDansJoueur(p);
     if (j) {
       console.log('Click dans joueur');
 
@@ -1117,18 +1304,17 @@ function GameFramework() {
       || GestionnaireCollision.pointDansRectangle(drapeauDroit, p)
       || GestionnaireCollision.pointDansRectangle(drapeauGauche, p)
       || GestionnaireCollision.dansCurseurForce(curseurForce, p)
-      || GestionnaireCollision.dansColorPicker(colorPicker, p).clicked) {
+      || GestionnaireCollision.dansColorPicker(colorPicker, p).clicked
+      || GestionnaireCollision.pointDansRectangle(reloadButton, p)
+      || GestionnaireCollision.pointDansRectangle(soundButton, p)) {
       document.body.style.cursor = 'pointer';
     } else {
       document.body.style.cursor = 'default';
     }
 
-
-    if (!curseurTir.estVisible) {
-      return;
+    if (curseurTir.estVisible) {
+      curseurTir.angle = calculerAngle(e.clientX, e.clientY);
     }
-
-    curseurTir.angle = calculerAngle(e.clientX, e.clientY);
   }
 
   return {
