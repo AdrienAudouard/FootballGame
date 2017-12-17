@@ -1,6 +1,6 @@
 # FootballGame
 
-A two player game inspired by [Soccer Stars by MiniClip](https://www.miniclip.com/games/soccer-stars-mobile/fr/)
+A HTML 5 football game inspired by [Soccer Stars by MiniClip](https://www.miniclip.com/games/soccer-stars-mobile/fr/)
 
 ![Screen](img/screen.png)
 
@@ -16,6 +16,14 @@ A two player game inspired by [Soccer Stars by MiniClip](https://www.miniclip.co
 
 * Change the colors of each players by clicking the flags
 * Change the shooting power by adjusting the gage on the left
-* Colors are saved in the cookies
+* Colors are saved in cookies
 * Can restart all the game
-* Can enabled and disable the sound 
+* Can enabled and disable the sound
+
+## Author
+
+* **Adrien Audouard** - [RidazFluent](https://github.com/RidazFluent)
+
+## Licence
+
+This project is licensed, see the [LICENSE.md](LICENSE.md) file for details
