@@ -187,6 +187,10 @@ class SoundButton extends ImageObjet {
 
     return this.image.src.includes(this.sound.src);
   }
+
+  setEnabled(v) {
+    this.image = (v) ? this.sound : this.noSound;
+  }
 }
 
 /**
@@ -1079,8 +1083,6 @@ function SoundsManager() {
     audioBords.src = 'sounds/collisionBords.wav';
     audioJoueurs.src = 'sounds/collisionJoueurs.wav';
     audioBut.src = 'sounds/suuu.wav';
-
-    soundEnabled = true;
   }
 
   /**
@@ -1121,6 +1123,7 @@ function SoundsManager() {
    * @param v {boolean} True si on veut activer le son et false si on veut le desactiver
    */
   function setEnabled(v) {
+    setCookie('sound', v + '', 100);
     soundEnabled = v;
   }
 
@@ -1424,9 +1427,9 @@ function GameFramework() {
     const toLoad = [soundButton.noSoundLoaded,
       soundButton.soundLoaded,
       reloadButton.imageLoaded,
-      soundsManager.getAudioBordsLoaded,
-      soundsManager.getAudioButLoaded,
-      soundsManager.getAudioJoueursLoaded];
+      soundsManager.getAudioBordsLoaded(),
+      soundsManager.getAudioButLoaded(),
+      soundsManager.getAudioJoueursLoaded()];
 
     let isLoad = 0;
 
@@ -1490,7 +1493,7 @@ function GameFramework() {
     dernierTir = tour;
 
     curseurTir.joueur.angle = curseurTir.angle;
-    curseurTir.joueur.vitesse = 10.0 * parseFloat(curseurForce.valeur);
+    curseurTir.joueur.vitesse = 12.5 * parseFloat(curseurForce.valeur);
     curseurTir.estVisible = false;
     curseurTir.joueur = null;
     tour = (tour === COTE.GAUCHE) ? COTE.DROITE : COTE.GAUCHE;
@@ -1522,6 +1525,11 @@ function GameFramework() {
 
     soundsManager = new SoundsManager();
     soundsManager.init();
+
+    const soundEnabled = (getCookie('sound') === '' || getCookie('sound') === 'true');
+    console.log(soundEnabled);
+    soundsManager.setEnabled(soundEnabled);
+    soundButton.setEnabled(soundEnabled);
 
     tirEnCours = false;
 
