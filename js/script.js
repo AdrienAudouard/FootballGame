@@ -31,8 +31,8 @@ let gf;
 
 /**
  * Retourne le cookie demandé
- * @param cname Nom du cookie
- * @returns {*} Valeur du cookie ou une chaine vide si le cookie n'existe pas
+ * @param cname {string} Nom du cookie
+ * @returns {string} Valeur du cookie ou une chaine vide si le cookie n'existe pas
  *
  * Methode from W3C
  * https://www.w3schools.com/js/js_cookies.asp
@@ -54,13 +54,14 @@ function getCookie(cname) {
   return '';
 }
 
-// Methode from W3C
-// https://www.w3schools.com/js/js_cookies.asp
 /**
  * Ajoute une nouveau cookie
- * @param cname Nom du cookie
- * @param cvalue Valeur du cookie
- * @param exdays Durée après laquelle le cookie est expiré
+ * @param cname {string} Nom du cookie
+ * @param cvalue {string} Valeur du cookie
+ * @param exdays {number} Durée après laquelle le cookie est expiré
+ *
+ * Methode from W3C
+ * https://www.w3schools.com/js/js_cookies.asp
  */
 function setCookie(cname, cvalue, exdays) {
   const d = new Date();
@@ -77,10 +78,10 @@ function setCookie(cname, cvalue, exdays) {
 class ObjetGraphique {
   /**
    * Constructeur par defaut
-   * @param pX Position en X
-   * @param pY Position en Y
-   * @param w Largeur
-   * @param h Hauteur
+   * @param pX {number} Position en X
+   * @param pY {number} Position en Y
+   * @param w {number} Largeur
+   * @param h {number} Hauteur
    */
   constructor(pX, pY, w, h) {
     this.x = pX;
@@ -91,23 +92,12 @@ class ObjetGraphique {
 
   /**
    * Retourne la poisiton au centre de l'écran
-   * @returns {{x: *, y: *}}
+   * @returns {{x: number, y: number}}
    */
   centre() {
     return {
       x: this.x + (this.width / 2),
       y: this.y + (this.height / 2),
-    };
-  }
-
-  /**
-   * Retourne un objet contenant la position en X et en Y
-   * @returns {{x: number, y: number}}
-   */
-  pos() {
-    return {
-      x: this.x,
-      y: this.y,
     };
   }
 }
@@ -118,14 +108,21 @@ class ObjetGraphique {
 class ImageObjet extends ObjetGraphique {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
-   * @param src Lien vers l'image
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param src {string} Lien vers l'image
    */
   constructor(x, y, src) {
     super(x, y, 32, 32);
 
     this.image = new Image();
+    this.imageLoaded = false;
+
+    this.image.addEventListener('load', () => {
+      console.log(`${this.image.src} loaded`);
+      this.imageLoaded = true;
+    });
+
     this.image.src = src;
   }
 
@@ -145,8 +142,8 @@ class ImageObjet extends ObjetGraphique {
 class ReloadButton extends ImageObjet {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    */
   constructor(x, y) {
     super(x, y, 'img/icon.png');
@@ -159,14 +156,30 @@ class ReloadButton extends ImageObjet {
 class SoundButton extends ImageObjet {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    */
   constructor(x, y) {
     super(x, y, 'img/speaker.png');
 
-    this.sound = 'img/speaker.png';
-    this.noSound = 'img/no_speaker.png';
+    this.sound = new Image();
+    this.noSound = new Image();
+
+    this.soundLoaded = false;
+    this.noSoundLoaded = false;
+
+    this.sound.addEventListener('load', () => {
+      console.log(`${this.sound.src} loaded`);
+      this.soundLoaded = true;
+    });
+
+    this.noSound.addEventListener('load', () => {
+      console.log(`${this.noSound.src} loaded`);
+      this.noSoundLoaded = true;
+    });
+
+    this.sound.src = 'img/speaker.png';
+    this.noSound.src = 'img/no_speaker.png';
   }
 
   /**
@@ -175,9 +188,9 @@ class SoundButton extends ImageObjet {
    * emettant de la musique
    */
   inverser() {
-    this.image.src = (this.image.src.includes(this.sound)) ? this.noSound : this.sound;
+    this.image = (this.image.src.includes(this.sound.src)) ? this.noSound : this.sound;
 
-    return this.image.src.includes(this.sound);
+    return this.image.src.includes(this.sound.src);
   }
 }
 
@@ -187,8 +200,8 @@ class SoundButton extends ImageObjet {
 class Cage extends ObjetGraphique {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    */
   constructor(x, y) {
     super(x, y, CAGE_WIDTH, CAGE_HEIGHT);
@@ -237,10 +250,10 @@ class Cage extends ObjetGraphique {
 class Map extends ObjetGraphique {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
-   * @param w Largeur
-   * @param h Hauteur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param w {number} Largeur
+   * @param h {number} Hauteur
    */
   constructor(x, y, w, h) {
     super(x, y, w, h);
@@ -265,9 +278,9 @@ class Map extends ObjetGraphique {
 
     ctx.fillStyle = '#1f8241';
 
-    const space = this.width / 9;
+    const space = this.width / 15;
 
-    for (let i = 0; i < 9; i += 1) {
+    for (let i = 0; i < 15; i += 1) {
       if (i % 2 === 0) {
         const x = i * space;
         ctx.fillRect(x, 0, space, this.height);
@@ -296,12 +309,11 @@ class Map extends ObjetGraphique {
  * Objet graphique representant un rond qui se deplace
  */
 class Rond extends ObjetGraphique {
-
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
-   * @param r Rayon
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param r {number} Diametre
    */
   constructor(x, y, r) {
     super(x, y, r, r);
@@ -353,8 +365,8 @@ class Rond extends ObjetGraphique {
 class Ballon extends Rond {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    */
   constructor(x, y) {
     super(x, y, BALLON_WIDTH, BALLON_WIDTH);
@@ -433,8 +445,8 @@ class Ballon extends Rond {
 class Joueur extends Rond {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    * @param c Couleurs du joueur
    */
   constructor(x, y, c) {
@@ -793,8 +805,8 @@ class ColorPicker extends ObjetGraphique {
 class Drapeau extends ObjetGraphique {
   /**
    * Constructeur
-   * @param x Position en X
-   * @param y Position en Y
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
    * @param colors Couleurs du drapeau
    */
   constructor(x, y, colors) {
@@ -818,8 +830,8 @@ class Drapeau extends ObjetGraphique {
 
   /**
    * Change une couleur du drapeau et met à jour les cookies
-   * @param index Indice de la couleur
-   * @param color Nouvelle couleur
+   * @param index {number} Indice de la couleur
+   * @param color {string} Nouvelle couleur
    */
   setColor(index, color) {
     const cookie = this.colors === COLOR_1 ? 'COLOR_1_' : 'COLOR_2_';
@@ -831,7 +843,7 @@ class Drapeau extends ObjetGraphique {
 }
 
 /**
- * Classe static qui va ddetecter les collisions
+ * Classe static qui va detecter les collisions
  */
 class GestionnaireCollision {
   /**
@@ -889,9 +901,9 @@ class GestionnaireCollision {
 
   /**
    * Projection d'un point sur un segment
-   * @param p {int, int} Point
-   * @param a {int, int} Extremité du segment
-   * @param b {{int, int}} Extrémité du segment
+   * @param p {{x: number, y: number}} Point
+   * @param a {{x: number, y: number}} Extremité du segment
+   * @param b {{x: number, y: number}} Extrémité du segment
    * @returns {boolean} true si la projection est possible
    */
   static projectionSurSegment(p, a, b) {
@@ -902,7 +914,7 @@ class GestionnaireCollision {
     const bpx = p.x - b.x;
     const bpy = p.y - b.y;
     const s1 = (apx * abx) + (apy * aby);
-    const s2 = (bpx - abx) + (bpy - aby);
+    const s2 = (bpx * abx) + (bpy * aby);
 
     return s1 * s2 <= 0;
   }
@@ -928,10 +940,8 @@ class GestionnaireCollision {
       return true;
     }
 
-    const projVerticale = this.projectionSurSegment(c.centre(),
-      { x: r.x, y: r.y }, { x: r.x, y: r.y + r.height });
-    const projHorizontale = this.projectionSurSegment(c.centre(),
-      { x: r.x, y: r.y }, { x: r.x + r.width, y: r.y });
+    const projVerticale = this.projectionSurSegment(c.centre(), { x: r.x, y: r.y }, { x: r.x, y: r.y + r.height });
+    const projHorizontale = this.projectionSurSegment(c.centre(), { x: r.x, y: r.y }, { x: r.x + r.width, y: r.y });
 
     return projHorizontale || projVerticale;
   }
@@ -1043,6 +1053,10 @@ function SoundsManager() {
   let audioBut;
   let soundEnabled;
 
+  let audioBordsLoaded;
+  let audioJoueursLoaded;
+  let audioButLoaded;
+
   /**
    * Initialise le gestionnaire de son
    */
@@ -1050,6 +1064,25 @@ function SoundsManager() {
     audioBords = document.createElement('audio');
     audioJoueurs = document.createElement('audio');
     audioBut = document.createElement('audio');
+
+    audioBordsLoaded = false;
+    audioJoueursLoaded = false;
+    audioButLoaded = false;
+
+    audioBords.addEventListener('canplay', () => {
+      console.log(`${audioBords.src} loaded`);
+      audioBordsLoaded = true;
+    });
+
+    audioBut.addEventListener('canplay', () => {
+      console.log(`${audioBut.src} loaded`);
+      audioButLoaded = true;
+    });
+
+    audioJoueurs.addEventListener('canplay', () => {
+      console.log(`${audioJoueurs.src} loaded`);
+      audioJoueursLoaded = true;
+    });
 
     audioBords.src = 'sounds/collisionBords.wav';
     audioJoueurs.src = 'sounds/collisionJoueurs.wav';
@@ -1099,12 +1132,27 @@ function SoundsManager() {
     soundEnabled = v;
   }
 
+  function getAudioBordsLoaded() {
+    return audioBordsLoaded;
+  }
+
+  function getAudioJoueursLoaded() {
+    return audioJoueursLoaded;
+  }
+
+  function getAudioButLoaded() {
+    return audioButLoaded;
+  }
+
   return {
     init,
     collisionJoueurs,
     collisionBords,
     but,
     setEnabled,
+    getAudioBordsLoaded,
+    getAudioJoueursLoaded,
+    getAudioButLoaded,
   };
 }
 
@@ -1133,8 +1181,7 @@ function GameFramework() {
   let reloadButton;
   let soundButton;
   let soundsManager;
-
-
+  let chargementEnCours;
   /**
    * Initialise les couleurs des équipes
    */
@@ -1242,7 +1289,12 @@ function GameFramework() {
         e.inverserVy();
 
         collision = true;
+        console.log("oui7");
       }
+      console.log(map.cageDroite);
+      console.log(e);
+
+      console.log("oui6");
       // S'il y a collision avec la cage gauche
     } else if (GestionnaireCollision.cercleDansCarre(e, map.cageGauche)) {
       if (e.x <= map.cageGauche.x) {
@@ -1262,26 +1314,33 @@ function GameFramework() {
 
         collision = true;
       }
+      console.log(map.cageGauche);
+      console.log(e);
 
+      console.log("oui5");
     } else if (e.x <= map.x) {
       e.x = map.x;
       e.inverserVx();
 
       collision = true;
+
+      console.log("oui");
     } else if (e.x + e.width >= map.x + map.width) {
       e.x = (map.x + map.width) - e.width;
       e.inverserVx();
 
       collision = true;
+      console.log("oui 2");
     } else if (e.y <= map.y) {
       e.y = map.y;
       e.inverserVy();
 
       collision = true;
+      console.log("oui3");
     } else if (e.y + e.height >= map.y + map.height) {
-      e.y = (map.y + map.height) - e.width;
+      e.y = (map.y + map.height) - e.height;
       e.inverserVy();
-
+      console.log("oui4");
       collision = true;
     }
 
@@ -1348,13 +1407,11 @@ function GameFramework() {
     }
   }
 
-  function draw() {
+  function drawJeu() {
     collisions();
     update();
 
     ctx.save();
-
-    ctx.clearRect(0, 0, w, h);
 
     ctx.font = '70px Arial';
     ctx.fillStyle = 'white';
@@ -1385,6 +1442,64 @@ function GameFramework() {
     soundButton.draw(ctx);
 
     ctx.restore();
+  }
+
+  function drawChargement() {
+    const toLoad = [soundButton.noSoundLoaded,
+      soundButton.soundLoaded,
+      reloadButton.imageLoaded,
+      soundsManager.getAudioBordsLoaded,
+      soundsManager.getAudioButLoaded,
+      soundsManager.getAudioJoueursLoaded];
+
+    let isLoad = 0;
+
+    for (let i = 0; i < toLoad.length; i += 1) {
+      if (toLoad[i]) isLoad += 1;
+    }
+
+    const pourcent = (isLoad / toLoad.length);
+
+    if (pourcent === 1) {
+      chargementEnCours = false;
+    }
+
+    ctx.save();
+
+    ctx.translate(map.x + (map.width / 2), map.y + (map.height / 2));
+
+    ctx.font = '70px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chargement en cours...', 0, 0);
+
+    const wR = map.width;
+    const hR = 30;
+
+    const margin = 5;
+
+    const wL = (wR - (margin * 2)) * pourcent;
+    const hL = hR - (margin * 2);
+
+    ctx.fillStyle = '#101421';
+    ctx.translate(-(wR / 2), 100);
+    ctx.fillRect(0, 0, wR, hR);
+
+    ctx.fillStyle = '#e74c3c';
+    ctx.translate(margin, margin);
+    ctx.fillRect(0, 0, wL, hL);
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    if (chargementEnCours) {
+      drawChargement();
+    } else {
+      drawJeu();
+    }
 
     requestAnimationFrame(draw);
   }
@@ -1417,6 +1532,8 @@ function GameFramework() {
    * Initialise le GameFramework
    */
   function init() {
+    chargementEnCours = true;
+
     canvas = document.querySelector('#myCanvas');
 
     canvas.width = window.innerWidth;
