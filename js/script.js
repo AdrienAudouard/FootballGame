@@ -1,4 +1,4 @@
-// TODO: Gerer les buts
+// TODO: Bug de son quand joueur dans les cages
 // TODO: Corriger bugs de collisions
 
 const CAGE_WIDTH = 30;
@@ -29,8 +29,14 @@ const POSITIONS = [{ x: 35, y: (MAP_HEIGHT / 2) - (BALLON_WIDTH / 2) }, // Gardi
 
 let gf;
 
-// Methode from W3C
-// https://www.w3schools.com/js/js_cookies.asp
+/**
+ * Retourne le cookie demandé
+ * @param cname {string} Nom du cookie
+ * @returns {string} Valeur du cookie ou une chaine vide si le cookie n'existe pas
+ *
+ * Methode from W3C
+ * https://www.w3schools.com/js/js_cookies.asp
+ */
 function getCookie(cname) {
   const name = `${cname}=`;
   const decodedCookie = decodeURIComponent(document.cookie);
@@ -48,18 +54,33 @@ function getCookie(cname) {
   return '';
 }
 
-// Methode from W3C
-// https://www.w3schools.com/js/js_cookies.asp
+/**
+ * Ajoute une nouveau cookie
+ * @param cname {string} Nom du cookie
+ * @param cvalue {string} Valeur du cookie
+ * @param exdays {number} Durée après laquelle le cookie est expiré
+ *
+ * Methode from W3C
+ * https://www.w3schools.com/js/js_cookies.asp
+ */
 function setCookie(cname, cvalue, exdays) {
   const d = new Date();
   d.setTime(d.getTime() + ((((exdays * 24) * 60) * 60) * 1000));
   const expires = `expires=${d.toUTCString()}`;
   document.cookie = `${cname}=${cvalue};${expires};path=/`;
-
-  console.log(`cookie:${document.cookie}`);
 }
 
+/**
+ * Objet qui va être dessiné à l'écran
+ */
 class ObjetGraphique {
+  /**
+   * Constructeur par defaut
+   * @param pX {number} Position en X
+   * @param pY {number} Position en Y
+   * @param w {number} Largeur
+   * @param h {number} Hauteur
+   */
   constructor(pX, pY, w, h) {
     this.x = pX;
     this.y = pY;
@@ -67,30 +88,38 @@ class ObjetGraphique {
     this.height = h;
   }
 
+  /**
+   * Retourne la poisiton au centre de l'écran
+   * @returns {{x: number, y: number}}
+   */
   centre() {
     return {
       x: this.x + (this.width / 2),
       y: this.y + (this.height / 2),
     };
   }
-
-  pos() {
-    return {
-      x: this.x,
-      y: this.y,
-    };
-  }
-
-  estDans(x, y) {
-    return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
-  }
 }
 
+/**
+ * Objet graphique contenant une image
+ */
 class ImageObjet extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param src {string} Lien vers l'image
+   */
   constructor(x, y, src) {
     super(x, y, 32, 32);
 
     this.image = new Image();
+    this.imageLoaded = false;
+
+    this.image.addEventListener('load', () => {
+      this.imageLoaded = true;
+    });
+
     this.image.src = src;
   }
 
@@ -104,32 +133,79 @@ class ImageObjet extends ObjetGraphique {
   }
 }
 
+/**
+ * Bouton
+ */
 class ReloadButton extends ImageObjet {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   */
   constructor(x, y) {
     super(x, y, 'img/icon.png');
   }
 }
 
+/**
+ * Bouton
+ */
 class SoundButton extends ImageObjet {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   */
   constructor(x, y) {
     super(x, y, 'img/speaker.png');
 
-    this.sound = 'img/speaker.png';
-    this.noSound = 'img/no_speaker.png';
+    this.sound = new Image();
+    this.noSound = new Image();
+
+    this.soundLoaded = false;
+    this.noSoundLoaded = false;
+
+    this.sound.addEventListener('load', () => {
+      this.soundLoaded = true;
+    });
+
+    this.noSound.addEventListener('load', () => {
+      this.noSoundLoaded = true;
+    });
+
+    this.sound.src = 'img/speaker.png';
+    this.noSound.src = 'img/no_speaker.png';
   }
 
+  /**
+   * Inverse l'image du bouton
+   * @returns {boolean} Retourne true si l'image du bouton représente un haut parleur
+   * emettant de la musique
+   */
   inverser() {
-    this.image.src = (this.image.src.includes(this.sound)) ? this.noSound : this.sound;
+    this.image = (this.image.src.includes(this.sound.src)) ? this.noSound : this.sound;
 
-    return this.image.src.includes(this.sound);
+    return this.image.src.includes(this.sound.src);
   }
 }
 
+/**
+ * Objet representant une cage de but
+ */
 class Cage extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   */
   constructor(x, y) {
     super(x, y, CAGE_WIDTH, CAGE_HEIGHT);
   }
 
+  /**
+   * Dessine le sol de la cage
+   * @param ctx Context avec lequel on dessine
+   */
   drawSol(ctx) {
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -161,14 +237,19 @@ class Cage extends ObjetGraphique {
 
     ctx.restore();
   }
-
-  estDans(x, y) {
-    return (x >= this.x) && (x <= this.x + this.width) && (y >= this.y)
-      && (y <= this.y + this.height);
-  }
 }
 
+/**
+ * Objet representant le terrain de jeu
+ */
 class Map extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param w {number} Largeur
+   * @param h {number} Hauteur
+   */
   constructor(x, y, w, h) {
     super(x, y, w, h);
 
@@ -192,9 +273,9 @@ class Map extends ObjetGraphique {
 
     ctx.fillStyle = '#1f8241';
 
-    const space = this.width / 9;
+    const space = this.width / 15;
 
-    for (let i = 0; i < 9; i += 1) {
+    for (let i = 0; i < 15; i += 1) {
       if (i % 2 === 0) {
         const x = i * space;
         ctx.fillRect(x, 0, space, this.height);
@@ -219,26 +300,48 @@ class Map extends ObjetGraphique {
   }
 }
 
+/**
+ * Objet graphique representant un rond qui se deplace
+ */
 class Rond extends ObjetGraphique {
-  constructor(x, y, w) {
-    super(x, y, w, w);
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param r {number} Diametre
+   */
+  constructor(x, y, r) {
+    super(x, y, r, r);
 
     this.vitesse = 0;
     this.angle = 0;
   }
 
+  /**
+   * Retourne le rayon du rond
+   * @returns {number}
+   */
   rayon() {
     return this.width / 2;
   }
 
+  /**
+   * Inverse la vitesse sur l'axe des X
+   */
   inverserVx() {
     this.angle = Math.PI - this.angle;
   }
 
+  /**
+   * Inverse la vitesse sur l'axe des Y
+   */
   inverserVy() {
     this.angle = (2 * Math.PI) - this.angle;
   }
 
+  /**
+   * Met à jour la position de l'objet
+   */
   update() {
     if (this.vitesse === 0) return;
 
@@ -251,20 +354,17 @@ class Rond extends ObjetGraphique {
   }
 }
 
+/**
+ * Objet graphique representant un ballon
+ */
 class Ballon extends Rond {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   */
   constructor(x, y) {
     super(x, y, BALLON_WIDTH, BALLON_WIDTH);
-  }
-
-  update() {
-    if (this.vitesse === 0) return;
-
-    this.x += Math.cos(this.angle) * this.vitesse;
-    this.y += Math.sin(this.angle) * this.vitesse;
-
-    this.vitesse -= 0.1;
-
-    if (this.vitesse < 0) this.vitesse = 0;
   }
 
   draw(ctx) {
@@ -334,7 +434,16 @@ class Ballon extends Rond {
   }
 }
 
+/**
+ * Objet graphiqe representant un joueur
+ */
 class Joueur extends Rond {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param c Couleurs du joueur
+   */
   constructor(x, y, c) {
     super(x, y, BALLON_WIDTH, BALLON_WIDTH);
     this.colors = c;
@@ -345,6 +454,11 @@ class Joueur extends Rond {
     };
   }
 
+  /**
+   * Dessine le joueur
+   * @param ctx Contexte avec lequel on dessine
+   * @param doitJouer Indique si c'est au tour de se joueur de jouer
+   */
   draw(ctx, doitJouer) {
     if (doitJouer) {
       if (this.sizeDoitJouer.augmente) {
@@ -383,7 +497,7 @@ class Joueur extends Rond {
 
 
     Joueur.arc(ctx, 3, 3, 24, 24, 270, 90, true);
-    [, , ctx.fillStyle] = this.colors; // 'rgb(255, 0, 0)';
+    [,, ctx.fillStyle] = this.colors; // 'rgb(255, 0, 0)';
     ctx.fill();
 
 
@@ -414,13 +528,11 @@ class Joueur extends Rond {
     ctx.restore();
   }
 
-  estDans(x, y) {
-    const pos = this.centre();
-
-    const d = Math.sqrt(((pos.x - x) * (pos.x - x)) + ((pos.y - y) * (pos.y - y)));
-    return d <= (this.width / 2);
-  }
-
+  /**
+   * Calcul l'angle entre le joueur et un autre joueur
+   * @param j {Joueur} Joueur avec lequel on calcule l'angle
+   * @returns {number}
+   */
   calculerAngle(j) {
     const p = j.centre();
     const p2 = this.centre();
@@ -428,6 +540,17 @@ class Joueur extends Rond {
     return Math.atan((p.y - p2.y) / (p.x - p2.x));
   }
 
+  /**
+   * Dessine un arc de cercle
+   * @param context Contexte avec lequel on dessine
+   * @param x Position en X
+   * @param y Position en Y
+   * @param w Largeur
+   * @param h Hauteur
+   * @param startAngle Angle de depart
+   * @param endAngle Angle de fin
+   * @param isClosed indique si l'arc est fermé ou non
+   */
   static arc(context, x, y, w, h, startAngle, endAngle, isClosed) {
     context.save();
     context.beginPath();
@@ -444,7 +567,15 @@ class Joueur extends Rond {
   }
 }
 
+/**
+ * Classe representant une équipe
+ */
 class Equipe {
+  /**
+   * Constructeur
+   * @param cote Coté de l'équipe (DROITE OU GAUCHE)
+   * @param map Terrain de jeu
+   */
   constructor(cote, map) {
     this.cote = cote;
     this.joueurs = [];
@@ -453,6 +584,10 @@ class Equipe {
     this.doitJouer = false;
   }
 
+  /**
+   * Initialise tous les joueurs de l'équipe
+   * @param map Terrain de jeu
+   */
   creerJoueurs(map) {
     this.joueurs = [];
 
@@ -473,7 +608,15 @@ class Equipe {
   }
 }
 
+/**
+ * Objet graphique representant le curseur de tir
+ */
 class CurseurTir extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x Position en X
+   * @param y Position en Y
+   */
   constructor(x, y) {
     super(x, y, 100, 15);
 
@@ -516,7 +659,15 @@ class CurseurTir extends ObjetGraphique {
   }
 }
 
+/**
+ * Objet graphique representant un curseur qui va definir la force de tir
+ */
 class CurseurForce extends ObjetGraphique {
+  /**
+   * Constrcuteur
+   * @param x Position en X
+   * @param y Position en Y
+   */
   constructor(x, y) {
     super(x, y, CURSEUR_FORCE_WIDTH, CURSEUR_FORCE_HEIGHT);
 
@@ -563,6 +714,10 @@ class CurseurForce extends ObjetGraphique {
     ctx.restore();
   }
 
+  /**
+   * Defini la nouvelle valeur du curseur
+   * @param y Position en y où l'on a cliqué
+   */
   definirNouvelValeur(y) {
     const yMin = this.y + this.margeCote;
     const yMax = this.height - (2 * this.margeCote);
@@ -571,7 +726,15 @@ class CurseurForce extends ObjetGraphique {
   }
 }
 
+/**
+ * Objet graphique representant une palette de couleur
+ */
 class ColorPicker extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x Positon en X
+   * @param y Position en Y
+   */
   constructor(x, y) {
     super(x, y, 200, 200);
 
@@ -631,7 +794,16 @@ class ColorPicker extends ObjetGraphique {
   }
 }
 
+/**
+ * Objet graphique representant un drapeau
+ */
 class Drapeau extends ObjetGraphique {
+  /**
+   * Constructeur
+   * @param x {number} Position en X
+   * @param y {number} Position en Y
+   * @param colors Couleurs du drapeau
+   */
   constructor(x, y, colors) {
     super(x, y, FLAG_WIDTH, FLAG_HEIGHT);
 
@@ -651,6 +823,11 @@ class Drapeau extends ObjetGraphique {
     ctx.restore();
   }
 
+  /**
+   * Change une couleur du drapeau et met à jour les cookies
+   * @param index {number} Indice de la couleur
+   * @param color {string} Nouvelle couleur
+   */
   setColor(index, color) {
     const cookie = this.colors === COLOR_1 ? 'COLOR_1_' : 'COLOR_2_';
 
@@ -660,7 +837,16 @@ class Drapeau extends ObjetGraphique {
   }
 }
 
+/**
+ * Classe static qui va detecter les collisions
+ */
 class GestionnaireCollision {
+  /**
+   * Detecte une collision entre deux carrés
+   * @param c1 {ObjetGraphique}
+   * @param c2 {ObjetGraphique}
+   * @returns {boolean} true s'il y a eu une collision
+   */
   static carreDansCarre(c1, c2) {
     return !(c2.x >= c1.x + c1.width
       || c2.x + c2.width <= c1.x
@@ -668,11 +854,17 @@ class GestionnaireCollision {
       || c2.y + c2.height <= c1.height);
   }
 
-  static pointDansRectangle(c, p) {
-    return p.x >= c.x
-      && p.x <= c.x + c.width
-      && p.y >= c.y
-      && p.y <= c.y + c.height;
+  /**
+   * Detecte si un point est dans un rectangle
+   * @param r {ObjetGraphique} Rectangle
+   * @param p {{x: number, y: number}} Point
+   * @returns {boolean} true si le point est dans le rectangle
+   */
+  static pointDansRectangle(r, p) {
+    return p.x >= r.x
+      && p.x <= r.x + r.width
+      && p.y >= r.y
+      && p.y <= r.y + r.height;
   }
 
   /**
@@ -704,9 +896,9 @@ class GestionnaireCollision {
 
   /**
    * Projection d'un point sur un segment
-   * @param p {int, int} Point
-   * @param a {int, int} Extremité du segment
-   * @param b {{int, int}} Extrémité du segment
+   * @param p {{x: number, y: number}} Point
+   * @param a {{x: number, y: number}} Extremité du segment
+   * @param b {{x: number, y: number}} Extrémité du segment
    * @returns {boolean} true si la projection est possible
    */
   static projectionSurSegment(p, a, b) {
@@ -717,7 +909,7 @@ class GestionnaireCollision {
     const bpx = p.x - b.x;
     const bpy = p.y - b.y;
     const s1 = (apx * abx) + (apy * aby);
-    const s2 = (bpx - abx) + (bpy - aby);
+    const s2 = (bpx * abx) + (bpy * aby);
 
     return s1 * s2 <= 0;
   }
@@ -743,14 +935,18 @@ class GestionnaireCollision {
       return true;
     }
 
-    const projVerticale = this.projectionSurSegment(c.centre(),
-      { x: r.x, y: r.y }, { x: r.x, y: r.y + r.height });
-    const projHorizontale = this.projectionSurSegment(c.centre(),
-      { x: r.x, y: r.y }, { x: r.x + r.width, y: r.y });
+    const projVerticale = this.projectionSurSegment(c.centre(), { x: r.x, y: r.y }, { x: r.x, y: r.y + r.height });
+    const projHorizontale = this.projectionSurSegment(c.centre(), { x: r.x, y: r.y }, { x: r.x + r.width, y: r.y });
 
     return projHorizontale || projVerticale;
   }
 
+  /**
+   * Indique s'il le point est dans le drapeau
+   * @param d {Drapeau} Drapau
+   * @param p {{x: number, y: number}} Point
+   * @returns {*} Objet indiquant si le point est dans le drapeau, la position de la partie du drapeau cliquée et le drapeau
+   */
   static dansDrapeau(d, p) {
     const y = d.y;
 
@@ -775,9 +971,19 @@ class GestionnaireCollision {
 
     return {
       clicked: false,
+      index: 0,
+      y: 0,
+      x: 0,
+      flag: d,
     };
   }
 
+  /**
+   * Indique si le point est dans le color picker
+   * @param c {ColorPicker} ColorPicker
+   * @param p {{x: number, y: number}} Point
+   * @returns {*} Retourne un objet indiquant si le point est dans le color picker, les indices i et j de la couleur cliquée
+   */
   static dansColorPicker(c, p) {
     if (!c.estVisible) return { clicked: false };
 
@@ -812,6 +1018,12 @@ class GestionnaireCollision {
     return { clicked: false };
   }
 
+  /**
+   * Indique s'il un point est dans le curseur de force
+   * @param c {CurseurForce} Curseur de force
+   * @param p {{x: number, y: number}} Point
+   * @returns {boolean} true si le point est dans le curseur de force
+   */
   static dansCurseurForce(c, p) {
     const x = c.x + c.margeCote;
     const y = c.y + c.margeCote;
@@ -825,16 +1037,44 @@ class GestionnaireCollision {
   }
 }
 
+/**
+ * Gestionnair de son
+ * @returns {{init: init, collisionJoueurs: collisionJoueurs, collisionBords: collisionBords, but: but, setEnabled: setEnabled}}
+ * @constructor
+ */
 function SoundsManager() {
   let audioBords;
   let audioJoueurs;
   let audioBut;
   let soundEnabled;
 
+  let audioBordsLoaded;
+  let audioJoueursLoaded;
+  let audioButLoaded;
+
+  /**
+   * Initialise le gestionnaire de son
+   */
   function init() {
     audioBords = document.createElement('audio');
     audioJoueurs = document.createElement('audio');
     audioBut = document.createElement('audio');
+
+    audioBordsLoaded = false;
+    audioJoueursLoaded = false;
+    audioButLoaded = false;
+
+    audioBords.addEventListener('canplay', () => {
+      audioBordsLoaded = true;
+    });
+
+    audioBut.addEventListener('canplay', () => {
+      audioButLoaded = true;
+    });
+
+    audioJoueurs.addEventListener('canplay', () => {
+      audioJoueursLoaded = true;
+    });
 
     audioBords.src = 'sounds/collisionBords.wav';
     audioJoueurs.src = 'sounds/collisionJoueurs.wav';
@@ -843,29 +1083,57 @@ function SoundsManager() {
     soundEnabled = true;
   }
 
+  /**
+   * Joue un son de collision entre joueurs
+   */
   function collisionJoueurs() {
     if (!soundEnabled) return;
 
     audioJoueurs.pause();
+    audioJoueurs.currentTime = 0;
     audioJoueurs.play();
   }
 
+  /**
+   * Joue un son de collision entre un joueur et un bord du terrain
+   */
   function collisionBords() {
     if (!soundEnabled) return;
 
     audioBords.pause();
+    audioBords.currentTime = 0;
     audioBords.play();
   }
 
+  /**
+   * Joue un son de but
+   */
   function but() {
     if (!soundEnabled) return;
 
     audioBut.pause();
+    audioBut.currentTime = 0;
     audioBut.play();
   }
 
+  /**
+   * Active ou desactive les sons
+   * @param v {boolean} True si on veut activer le son et false si on veut le desactiver
+   */
   function setEnabled(v) {
     soundEnabled = v;
+  }
+
+  function getAudioBordsLoaded() {
+    return audioBordsLoaded;
+  }
+
+  function getAudioJoueursLoaded() {
+    return audioJoueursLoaded;
+  }
+
+  function getAudioButLoaded() {
+    return audioButLoaded;
   }
 
   return {
@@ -874,9 +1142,17 @@ function SoundsManager() {
     collisionBords,
     but,
     setEnabled,
+    getAudioBordsLoaded,
+    getAudioJoueursLoaded,
+    getAudioButLoaded,
   };
 }
 
+/**
+ * GameFramework
+ * @returns {{init: init, onClick: onClick, onMouseMove: onMouseMove}}
+ * @constructor
+ */
 function GameFramework() {
   let canvas;
   let w;
@@ -897,8 +1173,10 @@ function GameFramework() {
   let reloadButton;
   let soundButton;
   let soundsManager;
-
-
+  let chargementEnCours;
+  /**
+   * Initialise les couleurs des équipes
+   */
   function initColors() {
     for (let i = 0; i < 3; i += 1) {
       COLOR_1[i] = getCookie(`COLOR_1_${i}`) === '' ? COLOR_1[i] : getCookie(`COLOR_1_${i}`);
@@ -906,6 +1184,9 @@ function GameFramework() {
     }
   }
 
+  /**
+   * Reinitialise le jeu
+   */
   function reset() {
     const x = (w / 2) - (ROND_WIDTH / 2);
     const y = (h / 2) - (MAP_HEIGHT / 2);
@@ -921,12 +1202,18 @@ function GameFramework() {
       - (BALLON_WIDTH / 2), (y + (map.height / 2)) - (BALLON_WIDTH / 2));
   }
 
+  /**
+   * Reinitialise le jeu et les scores
+   */
   function fullReset() {
     reset();
     score.DROITE = 0;
     score.GAUCHE = 0;
   }
 
+  /**
+   * Verifie si un joueur est en deplacement
+   */
   function checkTirEnCours() {
     tirEnCours = false;
     equipes.forEach((e) => {
@@ -936,6 +1223,9 @@ function GameFramework() {
     });
   }
 
+  /**
+   * Met à joueur la position des joueurs et du ballon
+   */
   function update() {
     checkTirEnCours();
 
@@ -948,6 +1238,11 @@ function GameFramework() {
     });
   }
 
+  /**
+   * Gere une collision entre deux joueurs
+   * @param j Premier joueur avec lequel on doit gerer la collision
+   * @param j2 Deuxieme joueur avec lequel on doit gerer la collision
+   */
   function gererCollision(j, j2) {
     const angle = j.calculerAngle(j2);
 
@@ -962,8 +1257,11 @@ function GameFramework() {
     j2.vitesse = Math.max(j.vitesse, j2.vitesse);
   }
 
+  /**
+   * Gere les collisions avec les bords du terrain
+   * @param e Objet avec lequel on doit verifier les collisions
+   */
   function collisonBords(e) {
-    // S'il y a collision avec la cage droite
     let collision = false;
 
     if (GestionnaireCollision.cercleDansCarre(e, map.cageDroite)) {
@@ -1003,8 +1301,6 @@ function GameFramework() {
 
         collision = true;
       }
-
-      collision = true;
     } else if (e.x <= map.x) {
       e.x = map.x;
       e.inverserVx();
@@ -1021,9 +1317,8 @@ function GameFramework() {
 
       collision = true;
     } else if (e.y + e.height >= map.y + map.height) {
-      e.y = (map.y + map.height) - e.width;
+      e.y = (map.y + map.height) - e.height;
       e.inverserVy();
-
       collision = true;
     }
 
@@ -1032,6 +1327,9 @@ function GameFramework() {
     }
   }
 
+  /**
+   * Traite toutes les collisions
+   */
   function collisions() {
     collisonBords(ballon);
 
@@ -1074,26 +1372,22 @@ function GameFramework() {
       soundsManager.collisionJoueurs();
     }
 
-    if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageGauche)) {
+    if (GestionnaireCollision.pointDansRectangle(map.cageGauche, ballon.centre())) {
       score.DROITE += 1;
       reset();
       soundsManager.but();
-      console.log('But');
-    } else if (GestionnaireCollision.pointDansRectangle(ballon.centre(), map.cageDroite)) {
+    } else if (GestionnaireCollision.pointDansRectangle(map.cageDroite, ballon.centre())) {
       score.GAUCHE += 1;
       reset();
       soundsManager.but();
-      console.log('But');
     }
   }
 
-  function draw() {
+  function drawJeu() {
     collisions();
     update();
 
     ctx.save();
-
-    ctx.clearRect(0, 0, w, h);
 
     ctx.font = '70px Arial';
     ctx.fillStyle = 'white';
@@ -1124,10 +1418,71 @@ function GameFramework() {
     soundButton.draw(ctx);
 
     ctx.restore();
+  }
+
+  function drawChargement() {
+    const toLoad = [soundButton.noSoundLoaded,
+      soundButton.soundLoaded,
+      reloadButton.imageLoaded,
+      soundsManager.getAudioBordsLoaded,
+      soundsManager.getAudioButLoaded,
+      soundsManager.getAudioJoueursLoaded];
+
+    let isLoad = 0;
+
+    for (let i = 0; i < toLoad.length; i += 1) {
+      if (toLoad[i]) isLoad += 1;
+    }
+
+    const pourcent = (isLoad / toLoad.length);
+
+    if (pourcent === 1) {
+      chargementEnCours = false;
+    }
+
+    ctx.save();
+
+    ctx.translate(map.x + (map.width / 2), map.y + (map.height / 2));
+
+    ctx.font = '70px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chargement en cours...', 0, 0);
+
+    const wR = map.width;
+    const hR = 30;
+
+    const margin = 5;
+
+    const wL = (wR - (margin * 2)) * pourcent;
+    const hL = hR - (margin * 2);
+
+    ctx.fillStyle = '#101421';
+    ctx.translate(-(wR / 2), 100);
+    ctx.fillRect(0, 0, wR, hR);
+
+    ctx.fillStyle = '#e74c3c';
+    ctx.translate(margin, margin);
+    ctx.fillRect(0, 0, wL, hL);
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    if (chargementEnCours) {
+      drawChargement();
+    } else {
+      drawJeu();
+    }
 
     requestAnimationFrame(draw);
   }
 
+  /**
+   * Effectue un tir
+   */
   function tir() {
     if (tirEnCours) { return; }
 
@@ -1149,7 +1504,12 @@ function GameFramework() {
     }
   }
 
+  /**
+   * Initialise le GameFramework
+   */
   function init() {
+    chargementEnCours = true;
+
     canvas = document.querySelector('#myCanvas');
 
     canvas.width = window.innerWidth;
@@ -1202,6 +1562,11 @@ function GameFramework() {
     requestAnimationFrame(draw);
   }
 
+  /**
+   * Gere un clique dans un joueur
+   * @param p {{x: number, y: number}} Point où l'on a cliqué
+   * @returns {Joueur} Joueur si un joueur a été cliqué, null si aucun joueur n'a été cliqué
+   */
   function clickDansJoueur(p) {
     if (tirEnCours) return null;
 
@@ -1217,6 +1582,10 @@ function GameFramework() {
     return null;
   }
 
+  /**
+   * Gere un clique
+   * @param e Position où il y a eu le clique
+   */
   function onClick(e) {
     const p = { x: e.clientX, y: e.clientY };
 
@@ -1235,7 +1604,6 @@ function GameFramework() {
     }
 
     if (c.clicked) {
-      console.log('couleur !');
       colorPicker.estVisible = false;
       colorPicker.flagSelected.setColor(colorPicker.indexSelected, COLORS_PICKER[c.i][c.j]);
 
@@ -1249,7 +1617,6 @@ function GameFramework() {
     }
 
     if (dClicked.clicked) {
-      console.log('felsdkvjd');
       colorPicker.estVisible = true;
       colorPicker.y = dClicked.y;
       colorPicker.x = dClicked.x - colorPicker.width;
@@ -1261,8 +1628,6 @@ function GameFramework() {
 
     const j = clickDansJoueur(p);
     if (j) {
-      console.log('Click dans joueur');
-
       curseurTir.estVisible = true;
       curseurTir.joueur = j;
 
@@ -1284,12 +1649,22 @@ function GameFramework() {
     }
   }
 
+  /**
+   * Calcule l'angle entre le curseur de tir et une position
+   * @param x Position X
+   * @param y Position Y
+   * @returns {number} Angle en radian
+   */
   function calculerAngle(x, y) {
     const pos = curseurTir.centre();
 
     return Math.atan((pos.y - y) / (pos.x - x)) + ((x > pos.x) ? 0 : Math.PI);
   }
 
+  /**
+   * Gere les mouvements de la sourie
+   * @param e Position de la sourie
+   */
   function onMouseMove(e) {
     let dansJoueur = false;
     const p = { x: e.clientX, y: e.clientY };
