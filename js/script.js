@@ -1,4 +1,3 @@
-// TODO: Bug de son quand joueur dans les cages
 // TODO: Corriger bugs de collisions
 
 const CAGE_WIDTH = 30;
@@ -378,7 +377,6 @@ class Rond extends ObjetGraphique {
   update() {
     if (this.vitesse === 0) return;
 
-    this.angle += this.vitesse / VITESSE_MAX * 0.05;
     this.x += Math.cos(this.angle) * this.vitesse;
     this.y += Math.sin(this.angle) * this.vitesse;
 
@@ -1630,6 +1628,15 @@ function GameFramework() {
 
     const c = GestionnaireCollision.dansColorPicker(colorPicker, p);
 
+    if (c.clicked) {
+      colorPicker.estVisible = false;
+      colorPicker.flagSelected.setColor(colorPicker.indexSelected, COLORS_PICKER[c.i][c.j]);
+
+      return;
+    }
+
+    colorPicker.estVisible = false;
+
     if (GestionnaireCollision.pointDansRectangle(reloadButton, p)) {
       fullReset();
 
@@ -1638,13 +1645,6 @@ function GameFramework() {
 
     if (GestionnaireCollision.pointDansRectangle(soundButton, p)) {
       soundsManager.setEnabled(soundButton.inverser());
-
-      return;
-    }
-
-    if (c.clicked) {
-      colorPicker.estVisible = false;
-      colorPicker.flagSelected.setColor(colorPicker.indexSelected, COLORS_PICKER[c.i][c.j]);
 
       return;
     }
