@@ -5,6 +5,7 @@ const CAGE_WIDTH = 30;
 const CAGE_HEIGHT = 200;
 const BALLON_WIDTH = 30;
 const ROND_WIDTH = 900;
+const VITESSE_MAX = 12.5;
 const MAP_HEIGHT = 500;
 const COLOR_1 = ['rgb(0, 0, 255)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
 const COLOR_2 = ['rgb(55, 131, 56)', 'rgb(255, 255, 255)', 'rgb(255, 0, 0)'];
@@ -121,12 +122,40 @@ class ImageObjet extends ObjetGraphique {
     });
 
     this.image.src = src;
+    this.angle = 0;
+    this.doitAugmenterAngle = false;
+  }
+
+  augmenterAngle() {
+    this.doitAugmenterAngle = true;
+  }
+
+  baisserAngle() {
+    this.doitAugmenterAngle = false;
   }
 
   draw(ctx) {
+    if (this.doitAugmenterAngle) {
+      this.angle += 0.125;
+
+      if (this.angle > Math.PI / 2) {
+        this.angle = Math.PI / 2;
+      }
+    } else {
+      this.angle -= 0.125;
+
+      if (this.angle < 0) {
+        this.angle = 0;
+      }
+    }
+
     ctx.save();
 
     ctx.translate(this.x, this.y);
+    ctx.translate(this.width / 2, this.height / 2);
+    ctx.rotate(this.angle);
+    ctx.translate(-this.width / 2, -this.height / 2);
+
     ctx.drawImage(this.image, 0, 0, this.width, this.height);
 
     ctx.restore();
@@ -349,6 +378,7 @@ class Rond extends ObjetGraphique {
   update() {
     if (this.vitesse === 0) return;
 
+    this.angle += this.vitesse / VITESSE_MAX * 0.05;
     this.x += Math.cos(this.angle) * this.vitesse;
     this.y += Math.sin(this.angle) * this.vitesse;
 
@@ -368,10 +398,11 @@ class Ballon extends Rond {
    * @param y {number} Position en Y
    */
   constructor(x, y) {
-    super(x, y, BALLON_WIDTH, BALLON_WIDTH);
+    super(x, y, BALLON_WIDTH);
   }
 
   draw(ctx) {
+
     ctx.save();
     ctx.translate(this.x, this.y);
 
@@ -449,7 +480,7 @@ class Joueur extends Rond {
    * @param c Couleurs du joueur
    */
   constructor(x, y, c) {
-    super(x, y, BALLON_WIDTH, BALLON_WIDTH);
+    super(x, y, BALLON_WIDTH);
     this.colors = c;
 
     this.sizeDoitJouer = {
@@ -1493,7 +1524,7 @@ function GameFramework() {
     dernierTir = tour;
 
     curseurTir.joueur.angle = curseurTir.angle;
-    curseurTir.joueur.vitesse = 12.5 * parseFloat(curseurForce.valeur);
+    curseurTir.joueur.vitesse = VITESSE_MAX * parseFloat(curseurForce.valeur);
     curseurTir.estVisible = false;
     curseurTir.joueur = null;
     tour = (tour === COTE.GAUCHE) ? COTE.DROITE : COTE.GAUCHE;
@@ -1688,11 +1719,17 @@ function GameFramework() {
       || GestionnaireCollision.pointDansRectangle(drapeauGauche, p)
       || GestionnaireCollision.dansCurseurForce(curseurForce, p)
       || GestionnaireCollision.dansColorPicker(colorPicker, p).clicked
-      || GestionnaireCollision.pointDansRectangle(reloadButton, p)
       || GestionnaireCollision.pointDansRectangle(soundButton, p)) {
       document.body.style.cursor = 'pointer';
     } else {
       document.body.style.cursor = 'default';
+    }
+
+    if (GestionnaireCollision.pointDansRectangle(reloadButton, p)) {
+      document.body.style.cursor = 'pointer';
+      reloadButton.augmenterAngle();
+    } else {
+      reloadButton.baisserAngle();
     }
 
     if (curseurTir.estVisible) {
