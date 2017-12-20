@@ -138,8 +138,8 @@ class ImageObjet extends ObjetGraphique {
     if (this.doitAugmenterAngle) {
       this.angle += 0.125;
 
-      if (this.angle > Math.PI / 2) {
-        this.angle = Math.PI / 2;
+      if (this.angle > Math.PI) {
+        this.angle = Math.PI;
       }
     } else {
       this.angle -= 0.125;
