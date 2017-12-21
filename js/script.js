@@ -371,16 +371,22 @@ class Rond extends ObjetGraphique {
     this.angle = (2 * Math.PI) - this.angle;
   }
 
+
   /**
    * Met à jour la position de l'objet
+   * @param delta {number} Temps écoulé depuis la derniere update
    */
-  update() {
+  update(delta) {
     if (this.vitesse === 0) return;
 
-    this.x += Math.cos(this.angle) * this.vitesse;
-    this.y += Math.sin(this.angle) * this.vitesse;
+    console.log(delta / 1000);
 
-    this.vitesse = this.vitesse - 0.1;
+    const newDelta = (delta / (1000 / 60));
+
+    this.x += (Math.cos(this.angle) * this.vitesse) * newDelta;
+    this.y += (Math.sin(this.angle) * this.vitesse) * newDelta;
+
+    this.vitesse = this.vitesse - (0.1 * newDelta);
 
     if (this.vitesse < 0) this.vitesse = 0;
   }
@@ -1206,6 +1212,8 @@ function GameFramework() {
   let soundButton;
   let soundsManager;
   let chargementEnCours;
+  let lastUpdate;
+
   /**
    * Initialise les couleurs des équipes
    */
@@ -1258,14 +1266,17 @@ function GameFramework() {
   /**
    * Met à joueur la position des joueurs et du ballon
    */
-  function update() {
+  function update(currentTime) {
     checkTirEnCours();
 
-    ballon.update();
+    const delta = currentTime - lastUpdate;
+    lastUpdate = currentTime;
+
+    ballon.update(delta);
 
     equipes.forEach((eq) => {
       eq.joueurs.forEach((e) => {
-        e.update();
+        e.update(delta);
       });
     });
   }
@@ -1415,9 +1426,9 @@ function GameFramework() {
     }
   }
 
-  function drawJeu() {
+  function drawJeu(currentTime) {
     collisions();
-    update();
+    update(currentTime);
 
     ctx.save();
 
@@ -1500,13 +1511,13 @@ function GameFramework() {
     ctx.restore();
   }
 
-  function draw() {
+  function draw(currentTime) {
     ctx.clearRect(0, 0, w, h);
 
     if (chargementEnCours) {
       drawChargement();
     } else {
-      drawJeu();
+      drawJeu(currentTime);
     }
 
     requestAnimationFrame(draw);
@@ -1549,6 +1560,8 @@ function GameFramework() {
     w = canvas.width;
     h = canvas.height;
 
+    lastUpdate = new Date().getTime();
+
     reloadButton = new ReloadButton(20, 20);
     soundButton = new SoundButton(w - 52, 20);
 
@@ -1556,7 +1569,6 @@ function GameFramework() {
     soundsManager.init();
 
     const soundEnabled = (getCookie('sound') === '' || getCookie('sound') === 'true');
-    console.log(soundEnabled);
     soundsManager.setEnabled(soundEnabled);
     soundButton.setEnabled(soundEnabled);
 
