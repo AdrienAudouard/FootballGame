@@ -1,5 +1,3 @@
-// TODO: Corriger bugs de collisions
-
 const CAGE_WIDTH = 30;
 const CAGE_HEIGHT = 200;
 const BALLON_WIDTH = 30;
@@ -347,6 +345,8 @@ class Rond extends ObjetGraphique {
 
     this.vitesse = 0;
     this.angle = 0;
+    this.vitesseX = 0;
+    this.vitesseY = 0;
   }
 
   /**
@@ -361,34 +361,44 @@ class Rond extends ObjetGraphique {
    * Inverse la vitesse sur l'axe des X
    */
   inverserVx() {
-    this.angle = Math.PI - this.angle;
+    this.vitesseX = (this.vitesseX < 0) ? Math.abs(this.vitesseX) : -this.vitesseX;
+    //this.angle = Math.PI - this.angle;
   }
 
   /**
    * Inverse la vitesse sur l'axe des Y
    */
   inverserVy() {
-    this.angle = (2 * Math.PI) - this.angle;
+    this.vitesseY = (this.vitesseY < 0) ? Math.abs(this.vitesseY) : -this.vitesseY;
   }
 
+  vX() {
+    return this.vitesseX;
+  }
+
+  vY() {
+    return this.vitesseY;
+  }
 
   /**
    * Met à jour la position de l'objet
    * @param delta {number} Temps écoulé depuis la derniere update
    */
   update(delta) {
-    if (this.vitesse === 0) return;
-
-    console.log(delta / 1000);
+    if (this.vitesseX === 0 && this.vitesseY === 0) return;
 
     const newDelta = (delta / (1000 / 60));
 
-    this.x += (Math.cos(this.angle) * this.vitesse) * newDelta;
-    this.y += (Math.sin(this.angle) * this.vitesse) * newDelta;
+    this.x += this.vitesseX * newDelta;
+    this.y += this.vitesseY * newDelta;
 
-    this.vitesse = this.vitesse - (0.1 * newDelta);
+    this.vitesseX *= 0.97 * newDelta;
+    this.vitesseY *= 0.97 * newDelta;
 
-    if (this.vitesse < 0) this.vitesse = 0;
+    if ((this.vitesseY < 0.1 && this.vitesseY > -0.1) || (this.vitesseX < 0.1 && this.vitesseX > -0.1)) {
+      this.vitesseY = 0;
+      this.vitesseX = 0;
+    }
   }
 }
 
@@ -406,7 +416,6 @@ class Ballon extends Rond {
   }
 
   draw(ctx) {
-
     ctx.save();
     ctx.translate(this.x, this.y);
 
@@ -565,18 +574,6 @@ class Joueur extends Rond {
     ctx.fill();
 
     ctx.restore();
-  }
-
-  /**
-   * Calcul l'angle entre le joueur et un autre joueur
-   * @param j {Joueur} Joueur avec lequel on calcule l'angle
-   * @returns {number}
-   */
-  calculerAngle(j) {
-    const p = j.centre();
-    const p2 = this.centre();
-
-    return Math.atan((p.y - p2.y) / (p.x - p2.x));
   }
 
   /**
@@ -1281,23 +1278,51 @@ function GameFramework() {
     });
   }
 
+  function rotate(vX, vY, angle) {
+    return {
+      x: (vX * Math.cos(angle)) - (vY * Math.sin(angle)),
+      y: (vX * Math.sin(angle)) + (vY * Math.cos(angle)),
+    };
+  }
+
   /**
    * Gere une collision entre deux joueurs
    * @param j Premier joueur avec lequel on doit gerer la collision
    * @param j2 Deuxieme joueur avec lequel on doit gerer la collision
+   *
+   * Algorithme trouvé sur GitHub :
+   * https://gist.github.com/christopher4lis/f9ccb589ee8ecf751481f05a8e59b1dc
    */
   function gererCollision(j, j2) {
-    const angle = j.calculerAngle(j2);
 
-    j.angle = angle + ((j.x > j2.x) ? 0 : Math.PI);
-    j2.angle = angle + ((j2.x > j.x) ? 0 : Math.PI);
+    const xVelocityDiff = j.vX() - j2.vX();
+    const yVelocityDiff = j.vY() - j2.vY();
 
-    j.angle = j.vitesse > 0 ? (2 * Math.PI) - j.angle : j.angle;
-    j2.angle = j2.vitesse > 0 ? (2 * Math.PI) - j2.angle : j2.angle;
+    const xDist = j2.x - j.x;
+    const yDist = j2.y - j.y;
 
+    if ((xVelocityDiff * xDist) + (yVelocityDiff * yDist) >= 0) {
+      const angle = Math.atan2(j2.y - j.y, j2.x - j.x);
 
-    j.vitesse = Math.max(j.vitesse, j2.vitesse);
-    j2.vitesse = Math.max(j.vitesse, j2.vitesse);
+      const m1 = 1;
+      const m2 = 1;
+
+      const u1 = rotate(j.vX(), j.vY(), angle);
+      const u2 = rotate(j2.vX(), j2.vY(), angle);
+
+      const v1 = { x: ((u1.x * (m1 - m2)) / (m1 + m2)) + (((u2.x * 2) * m2) / (m1 + m2)), y: u1.y };
+      const v2 = { x: ((u2.x * (m1 - m2)) / (m1 + m2)) + (((u1.x * 2) * m2) / (m1 + m2)), y: u2.y };
+
+      // Final velocity after rotating axis back to original location
+      const vFinal1 = rotate(v1.x, v1.y, -angle);
+      const vFinal2 = rotate(v2.x, v2.y, -angle);
+
+      j.vitesseX = vFinal1.x;
+      j.vitesseY = vFinal1.y;
+
+      j2.vitesseX = vFinal2.x;
+      j2.vitesseY = vFinal2.y;
+    }
   }
 
   /**
@@ -1532,8 +1557,8 @@ function GameFramework() {
     tirEnCours = true;
     dernierTir = tour;
 
-    curseurTir.joueur.angle = curseurTir.angle;
-    curseurTir.joueur.vitesse = VITESSE_MAX * parseFloat(curseurForce.valeur);
+    curseurTir.joueur.vitesseX = Math.cos(curseurTir.angle) * (VITESSE_MAX * parseFloat(curseurForce.valeur));
+    curseurTir.joueur.vitesseY = Math.sin(curseurTir.angle) * (VITESSE_MAX * parseFloat(curseurForce.valeur));
     curseurTir.estVisible = false;
     curseurTir.joueur = null;
     tour = (tour === COTE.GAUCHE) ? COTE.DROITE : COTE.GAUCHE;
