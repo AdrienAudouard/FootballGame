@@ -2,10 +2,11 @@
 
 A HTML 5 football game inspired by [Soccer Stars by MiniClip](https://www.miniclip.com/games/soccer-stars-mobile/fr/)
 
-![Screen](img/screen.png)
+![Screen](img/screenshots/screen.png)
 
-## Running 
+## Running
 
+* Run ``` webpack ```
 * Open ``` index.html ```
 
 ## Rules
